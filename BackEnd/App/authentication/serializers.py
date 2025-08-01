@@ -4,12 +4,12 @@ from .models import User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True, min_length=8)
     confirm_password = serializers.CharField(write_only=True)
     
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'password', 'confirm_password')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'password', 'confirm_password')
         extra_kwargs = {
             'password': {'write_only': True},
             'confirm_password': {'write_only': True}
@@ -38,6 +38,8 @@ class UserLoginSerializer(serializers.Serializer):
             user = authenticate(email=email, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid email or password.')
+            if not user.is_active:
+                raise serializers.ValidationError('User account is disabled.')
             attrs['user'] = user
             return attrs
         else:
@@ -47,5 +49,5 @@ class UserLoginSerializer(serializers.Serializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'date_joined')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined')
         read_only_fields = ('id', 'date_joined') 
