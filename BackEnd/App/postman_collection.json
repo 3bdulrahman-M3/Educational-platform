@@ -1,0 +1,563 @@
+{
+  "info": {
+    "name": "Educational Platform API",
+    "description": "Complete API collection for testing the Educational Platform with Exams and Questions",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Instructor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"instructor@test.com\",\n  \"username\": \"instructor1\",\n  \"password\": \"testpass123\",\n  \"role\": \"instructor\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Register Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@test.com\",\n  \"username\": \"student1\",\n  \"password\": \"testpass123\",\n  \"role\": \"student\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Login Instructor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"instructor@test.com\",\n  \"password\": \"testpass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Login Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@test.com\",\n  \"password\": \"testpass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "item": [
+        {
+          "name": "Create Question - Multiple Choice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is the capital of France?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question - True/False",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Is Python a programming language?\",\n  \"question_type\": \"true_false\",\n  \"points\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question - Essay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Explain the concept of object-oriented programming.\",\n  \"question_type\": \"essay\",\n  \"points\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question - Short Answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is the output of 2 + 2?\",\n  \"question_type\": \"short_answer\",\n  \"points\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Get All Questions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Question Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Question",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"What is the capital of France? (Updated)\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 10\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Questions by Type",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/by_type/?type=multiple_choice",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "by_type", ""],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "multiple_choice"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Questions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/search/?q=Python",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "search", ""],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Python"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exams",
+      "item": [
+        {
+          "name": "Create Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Python Basics Exam\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Another Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Web Development Quiz\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Get All Exams",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Exam Details",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Exam",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Python Basics Exam (Updated)\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Exam",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exam Questions Management",
+      "item": [
+        {
+          "name": "Get Exam Questions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Add Question to Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_id\": 1,\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/add_question/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", "add_question", ""]
+            }
+          }
+        },
+        {
+          "name": "Add Another Question to Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_id\": 2,\n  \"order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/add_question/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", "add_question", ""]
+            }
+          }
+        },
+        {
+          "name": "Remove Question from Exam",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/1/remove_question/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", "1", "remove_question", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exam-Question Relationships",
+      "item": [
+        {
+          "name": "Get All Relationships",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exam-questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exam-questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Relationships by Exam",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exam-questions/?exam_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exam-questions", ""],
+              "query": [
+                {
+                  "key": "exam_id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Relationship",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"question\": 1,\n  \"order\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exam-questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exam-questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Relationship",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"question\": 1,\n  \"order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exam-questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exam-questions", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Relationship",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/exams/exam-questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exam-questions", "1", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

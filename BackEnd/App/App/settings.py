@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'authentication',
+    'exams'
 ]
 
 MIDDLEWARE = [
@@ -83,7 +84,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'edu',
         'USER': 'postgres',
-        'PASSWORD': 'abdo',
+        'PASSWORD': '00800',
         'HOST': 'localhost',
         'PORT': '5432',
     }

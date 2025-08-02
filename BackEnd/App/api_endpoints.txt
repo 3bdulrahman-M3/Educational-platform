@@ -1,0 +1,288 @@
+# Educational Platform API - All Endpoints for Testing
+# Base URL: http://localhost:8000/api
+
+# ========================================
+# AUTHENTICATION ENDPOINTS
+# ========================================
+
+# 1. Register Instructor
+POST http://localhost:8000/api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "instructor@test.com",
+  "username": "instructor1",
+  "password": "testpass123",
+  "role": "instructor",
+  "first_name": "John",
+  "last_name": "Doe"
+}
+
+# 2. Register Student
+POST http://localhost:8000/api/auth/register/
+Content-Type: application/json
+
+{
+  "email": "student@test.com",
+  "username": "student1",
+  "password": "testpass123",
+  "role": "student",
+  "first_name": "Jane",
+  "last_name": "Smith"
+}
+
+# 3. Login Instructor
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+  "email": "instructor@test.com",
+  "password": "testpass123"
+}
+
+# 4. Login Student
+POST http://localhost:8000/api/auth/login/
+Content-Type: application/json
+
+{
+  "email": "student@test.com",
+  "password": "testpass123"
+}
+
+# ========================================
+# QUESTIONS ENDPOINTS
+# ========================================
+
+# 5. Create Question - Multiple Choice
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "What is the capital of France?",
+  "question_type": "multiple_choice",
+  "points": 5
+}
+
+# 6. Create Question - True/False
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "Is Python a programming language?",
+  "question_type": "true_false",
+  "points": 3
+}
+
+# 7. Create Question - Essay
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "Explain the concept of object-oriented programming.",
+  "question_type": "essay",
+  "points": 10
+}
+
+# 8. Create Question - Short Answer
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "What is the output of 2 + 2?",
+  "question_type": "short_answer",
+  "points": 2
+}
+
+# 9. Get All Questions
+GET http://localhost:8000/api/exams/questions/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 10. Get Question Details
+GET http://localhost:8000/api/exams/questions/1/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 11. Update Question
+PUT http://localhost:8000/api/exams/questions/1/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "What is the capital of France? (Updated)",
+  "question_type": "multiple_choice",
+  "points": 10
+}
+
+# 12. Delete Question
+DELETE http://localhost:8000/api/exams/questions/1/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 13. Get Questions by Type
+GET http://localhost:8000/api/exams/questions/by_type/?type=multiple_choice
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 14. Search Questions
+GET http://localhost:8000/api/exams/questions/search/?q=Python
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# ========================================
+# EXAMS ENDPOINTS
+# ========================================
+
+# 15. Create Exam
+POST http://localhost:8000/api/exams/exams/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Python Basics Exam"
+}
+
+# 16. Create Another Exam
+POST http://localhost:8000/api/exams/exams/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Web Development Quiz"
+}
+
+# 17. Get All Exams
+GET http://localhost:8000/api/exams/exams/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 18. Get Exam Details
+GET http://localhost:8000/api/exams/exams/1/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 19. Update Exam
+PUT http://localhost:8000/api/exams/exams/1/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "name": "Python Basics Exam (Updated)"
+}
+
+# 20. Delete Exam
+DELETE http://localhost:8000/api/exams/exams/1/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# ========================================
+# EXAM QUESTIONS MANAGEMENT
+# ========================================
+
+# 21. Get Exam Questions
+GET http://localhost:8000/api/exams/exams/1/questions/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 22. Add Question to Exam
+POST http://localhost:8000/api/exams/exams/1/add_question/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "question_id": 1,
+  "order": 1
+}
+
+# 23. Add Another Question to Exam
+POST http://localhost:8000/api/exams/exams/1/add_question/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "question_id": 2,
+  "order": 2
+}
+
+# 24. Remove Question from Exam
+DELETE http://localhost:8000/api/exams/exams/1/remove_question/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "question_id": 1
+}
+
+# ========================================
+# EXAM-QUESTION RELATIONSHIPS
+# ========================================
+
+# 25. Get All Relationships
+GET http://localhost:8000/api/exams/exam-questions/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 26. Get Relationships by Exam
+GET http://localhost:8000/api/exams/exam-questions/?exam_id=1
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 27. Create Relationship
+POST http://localhost:8000/api/exams/exam-questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "exam": 1,
+  "question": 1,
+  "order": 1
+}
+
+# 28. Update Relationship
+PUT http://localhost:8000/api/exams/exam-questions/1/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "exam": 1,
+  "question": 1,
+  "order": 2
+}
+
+# 29. Delete Relationship
+DELETE http://localhost:8000/api/exams/exam-questions/1/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# ========================================
+# TESTING SEQUENCE
+# ========================================
+
+# Step 1: Register and Login
+# Run: Register Instructor (1)
+# Run: Login Instructor (3) - Copy the token from response
+
+# Step 2: Create Questions
+# Run: Create Question - Multiple Choice (5)
+# Run: Create Question - True/False (6)
+# Run: Create Question - Essay (7)
+# Run: Create Question - Short Answer (8)
+
+# Step 3: Create Exams
+# Run: Create Exam (15)
+# Run: Create Another Exam (16)
+
+# Step 4: Add Questions to Exams
+# Run: Add Question to Exam (22)
+# Run: Add Another Question to Exam (23)
+
+# Step 5: Test Retrieval
+# Run: Get All Questions (9)
+# Run: Get All Exams (17)
+# Run: Get Exam Questions (21)
+# Run: Search Questions (14)
+# Run: Get Questions by Type (13)
+
+# ========================================
+# NOTES
+# ========================================
+
+# 1. Replace YOUR_TOKEN_HERE with the actual JWT token from login
+# 2. Replace IDs (1, 2, etc.) with actual IDs from your database
+# 3. All endpoints require authentication except registration and login
+# 4. Only instructors can create questions and exams
+# 5. Students can view all questions and exams
+# 6. Start your Django server: python manage.py runserver
+# 7. Run migrations: python manage.py makemigrations && python manage.py migrate 
