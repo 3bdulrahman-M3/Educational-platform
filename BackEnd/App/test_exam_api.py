@@ -26,24 +26,73 @@ test_users = {
 
 test_questions = [
     {
-        "text": "What is the capital of France?",
+        "text": "Is this the answer is either True or False? Python is a programming language.",
         "question_type": "multiple_choice",
         "points": 5
     },
     {
-        "text": "Is Python a programming language?",
-        "question_type": "true_false",
+        "text": "Is the answer True or False? Django is a web framework.",
+        "question_type": "multiple_choice",
         "points": 3
     },
     {
-        "text": "Explain the concept of object-oriented programming.",
-        "question_type": "essay",
-        "points": 10
+        "text": "What is the capital of France?",
+        "question_type": "multiple_choice",
+        "points": 5,
+        "choices": [
+            {
+                "text": "London",
+                "is_correct": False,
+                "order": 1
+            },
+            {
+                "text": "Paris",
+                "is_correct": True,
+                "order": 2
+            },
+            {
+                "text": "Berlin",
+                "is_correct": False,
+                "order": 3
+            },
+            {
+                "text": "Madrid",
+                "is_correct": False,
+                "order": 4
+            }
+        ]
     },
     {
-        "text": "What is the output of 2 + 2?",
-        "question_type": "short_answer",
-        "points": 2
+        "text": "Which of the following statements about Python are correct?",
+        "question_type": "multiple_choice",
+        "points": 10,
+        "choices": [
+            {
+                "text": "Python is an interpreted language",
+                "is_correct": True,
+                "order": 1
+            },
+            {
+                "text": "Python is a compiled language",
+                "is_correct": False,
+                "order": 2
+            },
+            {
+                "text": "Python supports object-oriented programming",
+                "is_correct": True,
+                "order": 3
+            },
+            {
+                "text": "Python is a low-level language",
+                "is_correct": False,
+                "order": 4
+            }
+        ]
+    },
+    {
+        "text": "Is JavaScript a programming language?",
+        "question_type": "multiple_choice",
+        "points": 3
     }
 ]
 

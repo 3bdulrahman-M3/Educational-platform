@@ -120,7 +120,7 @@
       "name": "Questions",
       "item": [
         {
-          "name": "Create Question - Multiple Choice",
+          "name": "Create True/False Question (Auto-detected)",
           "request": {
             "method": "POST",
             "header": [
@@ -131,7 +131,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"What is the capital of France?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5\n}"
+              "raw": "{\n  \"text\": \"Is this the answer is either True or False? Python is a programming language.\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/questions/",
@@ -141,7 +141,7 @@
           }
         },
         {
-          "name": "Create Question - True/False",
+          "name": "Create True/False Question (Alternative format)",
           "request": {
             "method": "POST",
             "header": [
@@ -152,7 +152,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Is Python a programming language?\",\n  \"question_type\": \"true_false\",\n  \"points\": 3\n}"
+              "raw": "{\n  \"text\": \"Is the answer True or False? Django is a web framework.\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 3\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/questions/",
@@ -162,7 +162,7 @@
           }
         },
         {
-          "name": "Create Question - Essay",
+          "name": "Create Multiple Choice with Custom Choices",
           "request": {
             "method": "POST",
             "header": [
@@ -173,7 +173,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"Explain the concept of object-oriented programming.\",\n  \"question_type\": \"essay\",\n  \"points\": 10\n}"
+              "raw": "{\n  \"text\": \"What is the capital of France?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5,\n  \"choices\": [\n    {\n      \"text\": \"London\",\n      \"is_correct\": false,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Paris\",\n      \"is_correct\": true,\n      \"order\": 2\n    },\n    {\n      \"text\": \"Berlin\",\n      \"is_correct\": false,\n      \"order\": 3\n    },\n    {\n      \"text\": \"Madrid\",\n      \"is_correct\": false,\n      \"order\": 4\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/questions/",
@@ -183,7 +183,7 @@
           }
         },
         {
-          "name": "Create Question - Short Answer",
+          "name": "Create Multiple Choice with True/False as Options",
           "request": {
             "method": "POST",
             "header": [
@@ -194,7 +194,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"What is the output of 2 + 2?\",\n  \"question_type\": \"short_answer\",\n  \"points\": 2\n}"
+              "raw": "{\n  \"text\": \"Which of the following statements about Python are correct?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 10,\n  \"choices\": [\n    {\n      \"text\": \"Python is an interpreted language\",\n      \"is_correct\": true,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Python is a compiled language\",\n      \"is_correct\": false,\n      \"order\": 2\n    },\n    {\n      \"text\": \"Python supports object-oriented programming\",\n      \"is_correct\": true,\n      \"order\": 3\n    },\n    {\n      \"text\": \"Python is a low-level language\",\n      \"is_correct\": false,\n      \"order\": 4\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/questions/",
@@ -204,13 +204,23 @@
           }
         },
         {
-          "name": "Get Question Details",
+          "name": "Create Question with Default True/False",
           "request": {
-            "method": "GET",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Is JavaScript a programming language?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 3\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/exams/questions/1/",
+              "raw": "{{base_url}}/exams/questions/",
               "host": ["{{base_url}}"],
-              "path": ["exams", "questions", "1", ""]
+              "path": ["exams", "questions", ""]
             }
           }
         },
@@ -226,7 +236,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"text\": \"What is the capital of France? (Updated)\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 10\n}"
+              "raw": "{\n  \"text\": \"Updated question text\",\n  \"points\": 10,\n  \"choices\": [\n    {\n      \"text\": \"Option A\",\n      \"is_correct\": true,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Option B\",\n      \"is_correct\": false,\n      \"order\": 2\n    }\n  ]\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/questions/1/",
@@ -243,40 +253,6 @@
               "raw": "{{base_url}}/exams/questions/1/",
               "host": ["{{base_url}}"],
               "path": ["exams", "questions", "1", ""]
-            }
-          }
-        },
-        {
-          "name": "Get Questions by Type",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/exams/questions/by_type/?type=multiple_choice",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "questions", "by_type", ""],
-              "query": [
-                {
-                  "key": "type",
-                  "value": "multiple_choice"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Search Questions",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/exams/questions/search/?q=Python",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "questions", "search", ""],
-              "query": [
-                {
-                  "key": "q",
-                  "value": "Python"
-                }
-              ]
             }
           }
         }
@@ -298,27 +274,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Python Basics Exam\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/exams/exams/",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "exams", ""]
-            }
-          }
-        },
-        {
-          "name": "Create Another Exam",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Web Development Quiz\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/exams/",
@@ -361,7 +316,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Python Basics Exam (Updated)\"\n}"
+              "raw": "{\n  \"name\": \"Updated Exam Name\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/exams/1/",
@@ -380,14 +335,9 @@
               "path": ["exams", "exams", "1", ""]
             }
           }
-        }
-      ]
-    },
-    {
-      "name": "Exam Questions Management",
-      "item": [
+        },
         {
-          "name": "Get Exam Questions",
+          "name": "Get Questions for an Exam",
           "request": {
             "method": "GET",
             "url": {
@@ -410,27 +360,6 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"question_id\": 1,\n  \"order\": 1\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/exams/exams/1/add_question/",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "exams", "1", "add_question", ""]
-            }
-          }
-        },
-        {
-          "name": "Add Another Question to Exam",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"question_id\": 2,\n  \"order\": 2\n}"
             },
             "url": {
               "raw": "{{base_url}}/exams/exams/1/add_question/",
@@ -463,59 +392,21 @@
       ]
     },
     {
-      "name": "Exam-Question Relationships",
+      "name": "User Profile",
       "item": [
         {
-          "name": "Get All Relationships",
+          "name": "Get User Profile",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/exams/exam-questions/",
+              "raw": "{{base_url}}/auth/profile/",
               "host": ["{{base_url}}"],
-              "path": ["exams", "exam-questions", ""]
+              "path": ["auth", "profile", ""]
             }
           }
         },
         {
-          "name": "Get Relationships by Exam",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/exams/exam-questions/?exam_id=1",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "exam-questions", ""],
-              "query": [
-                {
-                  "key": "exam_id",
-                  "value": "1"
-                }
-              ]
-            }
-          }
-        },
-        {
-          "name": "Create Relationship",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"exam\": 1,\n  \"question\": 1,\n  \"order\": 1\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/exams/exam-questions/",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "exam-questions", ""]
-            }
-          }
-        },
-        {
-          "name": "Update Relationship",
+          "name": "Update User Profile",
           "request": {
             "method": "PUT",
             "header": [
@@ -526,23 +417,33 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"exam\": 1,\n  \"question\": 1,\n  \"order\": 2\n}"
+              "raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"email\": \"updated@email.com\"\n}"
             },
             "url": {
-              "raw": "{{base_url}}/exams/exam-questions/1/",
+              "raw": "{{base_url}}/auth/profile/",
               "host": ["{{base_url}}"],
-              "path": ["exams", "exam-questions", "1", ""]
+              "path": ["auth", "profile", ""]
             }
           }
         },
         {
-          "name": "Delete Relationship",
+          "name": "Logout",
           "request": {
-            "method": "DELETE",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
             "url": {
-              "raw": "{{base_url}}/exams/exam-questions/1/",
+              "raw": "{{base_url}}/auth/logout/",
               "host": ["{{base_url}}"],
-              "path": ["exams", "exam-questions", "1", ""]
+              "path": ["auth", "logout", ""]
             }
           }
         }

@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from .models import Exam, Question, ExamQuestion
-from .serializers import ExamSerializer, QuestionSerializer, ExamQuestionSerializer
+from .serializers import ExamSerializer, QuestionSerializer, QuestionCreateSerializer, ExamQuestionSerializer
 
 
 # ==================== QUESTION VIEWS ====================
@@ -18,24 +18,20 @@ def question_list(request):
             {'error': 'Only instructors can create questions'}, 
             status=status.HTTP_403_FORBIDDEN
         )
-    serializer = QuestionSerializer(data=request.data)
+    serializer = QuestionCreateSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save(created_by=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def question_detail(request, pk):
-    """Retrieve, update or delete a question"""
+    """update or delete a question"""
     question = get_object_or_404(Question, pk=pk)
 
-    if request.method == 'GET':
-        serializer = QuestionSerializer(question)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
+    if request.method == 'PUT':
         # Only instructors can update questions
         if request.user.role != 'instructor':
             return Response(
@@ -43,7 +39,7 @@ def question_detail(request, pk):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        serializer = QuestionSerializer(question, data=request.data)
+        serializer = QuestionCreateSerializer(question, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -61,54 +57,6 @@ def question_detail(request, pk):
             return Response(
                 {'message': 'Question deleted successfully'},
                 status=status.HTTP_200_OK)
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def question_by_type(request):
-    """Get questions filtered by type"""
-    question_type = request.query_params.get('type', '')
-    user = request.user
-
-    if user.role == 'instructor':
-        questions = Question.objects.filter(
-            created_by=user, question_type=question_type)
-    else:
-        questions = Question.objects.filter(question_type=question_type)
-
-    if not questions.exists():
-        return Response(
-            {'error': 'No questions found for this type'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-
-    serializer = QuestionSerializer(questions, many=True)
-    return Response(serializer.data)
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def question_search(request):
-    """Search questions by text or type"""
-    query = request.query_params.get('q', '')
-    user = request.user
-
-    if user.role == 'instructor':
-        questions = Question.objects.filter(created_by=user).filter(
-            Q(text__icontains=query) | Q(question_type__icontains=query)
-        )
-    else:
-        questions = Question.objects.filter(
-            Q(text__icontains=query) | Q(question_type__icontains=query)
-        )
-    
-    if not questions.exists():
-        return Response(
-            {'error': 'No questions found matching the search criteria'}, 
-            status=status.HTTP_404_NOT_FOUND
-        )
-
-    serializer = QuestionSerializer(questions, many=True)
-    return Response(serializer.data)
 
 
 # ==================== EXAM VIEWS ====================

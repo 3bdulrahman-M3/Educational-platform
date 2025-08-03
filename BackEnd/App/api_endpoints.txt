@@ -53,7 +53,29 @@ Content-Type: application/json
 # QUESTIONS ENDPOINTS
 # ========================================
 
-# 5. Create Question - Multiple Choice
+# 5. Create True/False Question (Auto-detected)
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "Is this the answer is either True or False? Python is a programming language.",
+  "question_type": "multiple_choice",
+  "points": 5
+}
+
+# 6. Create True/False Question (Alternative format)
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "Is the answer True or False? Django is a web framework.",
+  "question_type": "multiple_choice",
+  "points": 3
+}
+
+# 7. Create Multiple Choice Question with Custom Choices
 POST http://localhost:8000/api/exams/questions/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -61,45 +83,74 @@ Authorization: Bearer YOUR_TOKEN_HERE
 {
   "text": "What is the capital of France?",
   "question_type": "multiple_choice",
-  "points": 5
+  "points": 5,
+  "choices": [
+    {
+      "text": "London",
+      "is_correct": false,
+      "order": 1
+    },
+    {
+      "text": "Paris",
+      "is_correct": true,
+      "order": 2
+    },
+    {
+      "text": "Berlin",
+      "is_correct": false,
+      "order": 3
+    },
+    {
+      "text": "Madrid",
+      "is_correct": false,
+      "order": 4
+    }
+  ]
 }
 
-# 6. Create Question - True/False
+# 8. Create Multiple Choice Question with True/False as Options
 POST http://localhost:8000/api/exams/questions/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
 
 {
-  "text": "Is Python a programming language?",
-  "question_type": "true_false",
+  "text": "Which of the following statements about Python are correct?",
+  "question_type": "multiple_choice",
+  "points": 10,
+  "choices": [
+    {
+      "text": "Python is an interpreted language",
+      "is_correct": true,
+      "order": 1
+    },
+    {
+      "text": "Python is a compiled language",
+      "is_correct": false,
+      "order": 2
+    },
+    {
+      "text": "Python supports object-oriented programming",
+      "is_correct": true,
+      "order": 3
+    },
+    {
+      "text": "Python is a low-level language",
+      "is_correct": false,
+      "order": 4
+    }
+  ]
+}
+
+# 9. Create Question with Default True/False (when no choices provided)
+POST http://localhost:8000/api/exams/questions/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "text": "Is JavaScript a programming language?",
+  "question_type": "multiple_choice",
   "points": 3
 }
-
-# 7. Create Question - Essay
-POST http://localhost:8000/api/exams/questions/
-Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN_HERE
-
-{
-  "text": "Explain the concept of object-oriented programming.",
-  "question_type": "essay",
-  "points": 10
-}
-
-# 8. Create Question - Short Answer
-POST http://localhost:8000/api/exams/questions/
-Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN_HERE
-
-{
-  "text": "What is the output of 2 + 2?",
-  "question_type": "short_answer",
-  "points": 2
-}
-
-# 9. Get All Questions
-GET http://localhost:8000/api/exams/questions/
-Authorization: Bearer YOUR_TOKEN_HERE
 
 # 10. Get Question Details
 GET http://localhost:8000/api/exams/questions/1/
@@ -111,28 +162,31 @@ Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
 
 {
-  "text": "What is the capital of France? (Updated)",
-  "question_type": "multiple_choice",
-  "points": 10
+  "text": "Updated question text",
+  "points": 10,
+  "choices": [
+    {
+      "text": "Option A",
+      "is_correct": true,
+      "order": 1
+    },
+    {
+      "text": "Option B",
+      "is_correct": false,
+      "order": 2
+    }
+  ]
 }
 
 # 12. Delete Question
 DELETE http://localhost:8000/api/exams/questions/1/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 13. Get Questions by Type
-GET http://localhost:8000/api/exams/questions/by_type/?type=multiple_choice
-Authorization: Bearer YOUR_TOKEN_HERE
-
-# 14. Search Questions
-GET http://localhost:8000/api/exams/questions/search/?q=Python
-Authorization: Bearer YOUR_TOKEN_HERE
-
 # ========================================
 # EXAMS ENDPOINTS
 # ========================================
 
-# 15. Create Exam
+# 13. Create Exam
 POST http://localhost:8000/api/exams/exams/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -141,45 +195,32 @@ Authorization: Bearer YOUR_TOKEN_HERE
   "name": "Python Basics Exam"
 }
 
-# 16. Create Another Exam
-POST http://localhost:8000/api/exams/exams/
-Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN_HERE
-
-{
-  "name": "Web Development Quiz"
-}
-
-# 17. Get All Exams
+# 14. Get All Exams
 GET http://localhost:8000/api/exams/exams/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 18. Get Exam Details
+# 15. Get Exam Details
 GET http://localhost:8000/api/exams/exams/1/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 19. Update Exam
+# 16. Update Exam
 PUT http://localhost:8000/api/exams/exams/1/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
 
 {
-  "name": "Python Basics Exam (Updated)"
+  "name": "Updated Exam Name"
 }
 
-# 20. Delete Exam
+# 17. Delete Exam
 DELETE http://localhost:8000/api/exams/exams/1/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# ========================================
-# EXAM QUESTIONS MANAGEMENT
-# ========================================
-
-# 21. Get Exam Questions
+# 18. Get Questions for an Exam
 GET http://localhost:8000/api/exams/exams/1/questions/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 22. Add Question to Exam
+# 19. Add Question to Exam
 POST http://localhost:8000/api/exams/exams/1/add_question/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -189,17 +230,7 @@ Authorization: Bearer YOUR_TOKEN_HERE
   "order": 1
 }
 
-# 23. Add Another Question to Exam
-POST http://localhost:8000/api/exams/exams/1/add_question/
-Content-Type: application/json
-Authorization: Bearer YOUR_TOKEN_HERE
-
-{
-  "question_id": 2,
-  "order": 2
-}
-
-# 24. Remove Question from Exam
+# 20. Remove Question from Exam
 DELETE http://localhost:8000/api/exams/exams/1/remove_question/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -209,18 +240,18 @@ Authorization: Bearer YOUR_TOKEN_HERE
 }
 
 # ========================================
-# EXAM-QUESTION RELATIONSHIPS
+# EXAM QUESTION RELATIONSHIPS
 # ========================================
 
-# 25. Get All Relationships
+# 21. Get All Exam-Question Relationships
 GET http://localhost:8000/api/exams/exam-questions/
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 26. Get Relationships by Exam
+# 22. Get Exam-Question Relationships for Specific Exam
 GET http://localhost:8000/api/exams/exam-questions/?exam_id=1
 Authorization: Bearer YOUR_TOKEN_HERE
 
-# 27. Create Relationship
+# 23. Create Exam-Question Relationship
 POST http://localhost:8000/api/exams/exam-questions/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -231,7 +262,7 @@ Authorization: Bearer YOUR_TOKEN_HERE
   "order": 1
 }
 
-# 28. Update Relationship
+# 24. Update Exam-Question Relationship
 PUT http://localhost:8000/api/exams/exam-questions/1/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
@@ -242,47 +273,83 @@ Authorization: Bearer YOUR_TOKEN_HERE
   "order": 2
 }
 
-# 29. Delete Relationship
+# 25. Delete Exam-Question Relationship
 DELETE http://localhost:8000/api/exams/exam-questions/1/
 Authorization: Bearer YOUR_TOKEN_HERE
+
+# ========================================
+# USER PROFILE ENDPOINTS
+# ========================================
+
+# 26. Get User Profile
+GET http://localhost:8000/api/auth/profile/
+Authorization: Bearer YOUR_TOKEN_HERE
+
+# 27. Update User Profile
+PUT http://localhost:8000/api/auth/profile/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "first_name": "Updated",
+  "last_name": "Name",
+  "email": "updated@email.com"
+}
+
+# 28. Logout
+POST http://localhost:8000/api/auth/logout/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "refresh_token": "YOUR_REFRESH_TOKEN_HERE"
+}
 
 # ========================================
 # TESTING SEQUENCE
 # ========================================
 
-# Step 1: Register and Login
+# Step 1: Authentication
 # Run: Register Instructor (1)
-# Run: Login Instructor (3) - Copy the token from response
+# Run: Login Instructor (3)
 
 # Step 2: Create Questions
-# Run: Create Question - Multiple Choice (5)
-# Run: Create Question - True/False (6)
-# Run: Create Question - Essay (7)
-# Run: Create Question - Short Answer (8)
+# Run: Create True/False Question (5)
+# Run: Create True/False Question Alternative (6)
+# Run: Create Multiple Choice with Custom Choices (7)
+# Run: Create Multiple Choice with True/False as Options (8)
+# Run: Create Question with Default True/False (9)
 
 # Step 3: Create Exams
-# Run: Create Exam (15)
-# Run: Create Another Exam (16)
+# Run: Create Exam (13)
 
 # Step 4: Add Questions to Exams
-# Run: Add Question to Exam (22)
-# Run: Add Another Question to Exam (23)
+# Run: Add Question to Exam (19)
+# Run: Remove Question from Exam (20)
 
 # Step 5: Test Retrieval
-# Run: Get All Questions (9)
-# Run: Get All Exams (17)
-# Run: Get Exam Questions (21)
-# Run: Search Questions (14)
-# Run: Get Questions by Type (13)
+# Run: Get All Exams (14)
+# Run: Get Exam Details (15)
+# Run: Get Questions for an Exam (18)
+# Run: Get Question Details (10)
 
 # ========================================
 # NOTES
 # ========================================
 
-# 1. Replace YOUR_TOKEN_HERE with the actual JWT token from login
-# 2. Replace IDs (1, 2, etc.) with actual IDs from your database
-# 3. All endpoints require authentication except registration and login
-# 4. Only instructors can create questions and exams
-# 5. Students can view all questions and exams
-# 6. Start your Django server: python manage.py runserver
-# 7. Run migrations: python manage.py makemigrations && python manage.py migrate 
+# True/False Question Detection:
+# The system automatically detects True/False questions when the text contains phrases like:
+# - "Is this the answer is either True or False?"
+# - "Is the answer True or False?"
+# - "Is this True or False?"
+# - "True or False?"
+# - And many other variations
+
+# When a True/False question is detected, the system automatically creates:
+# - Choice 1: "True" (correct)
+# - Choice 2: "False" (incorrect)
+
+# For other questions, you can:
+# - Provide custom choices (including True/False as options)
+# - Let the system create default True/False choices if none provided
+# - Have as many choices as you want 
