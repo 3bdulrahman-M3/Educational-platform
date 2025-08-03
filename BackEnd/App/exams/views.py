@@ -25,6 +25,13 @@ def question_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
+        # Only instructors can create questions
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can create questions'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = QuestionSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user)
@@ -43,6 +50,13 @@ def question_detail(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
+        # Only instructors can update questions
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can update questions'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = QuestionSerializer(question, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -50,6 +64,13 @@ def question_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
+        # Only instructors can delete questions
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can delete questions'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         question.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -108,6 +129,13 @@ def exam_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
+        # Only instructors can create exams
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can create exams'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = ExamSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(created_by=request.user)
@@ -126,6 +154,13 @@ def exam_detail(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
+        # Only instructors can update exams
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can update exams'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         serializer = ExamSerializer(exam, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -133,6 +168,13 @@ def exam_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
+        # Only instructors can delete exams
+        if request.user.role != 'instructor':
+            return Response(
+                {'error': 'Only instructors can delete exams'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
         exam.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -151,6 +193,13 @@ def exam_questions(request, pk):
 @permission_classes([IsAuthenticated])
 def add_question_to_exam(request, pk):
     """Add a question to an exam"""
+    # Only instructors can add questions to exams
+    if request.user.role != 'instructor':
+        return Response(
+            {'error': 'Only instructors can add questions to exams'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     exam = get_object_or_404(Exam, pk=pk)
     question_id = request.data.get('question_id')
     order = request.data.get('order', 0)
@@ -167,6 +216,13 @@ def add_question_to_exam(request, pk):
 @permission_classes([IsAuthenticated])
 def remove_question_from_exam(request, pk):
     """Remove a question from an exam"""
+    # Only instructors can remove questions from exams
+    if request.user.role != 'instructor':
+        return Response(
+            {'error': 'Only instructors can remove questions from exams'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
     exam = get_object_or_404(Exam, pk=pk)
     question_id = request.data.get('question_id')
 
