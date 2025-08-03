@@ -204,17 +204,6 @@
           }
         },
         {
-          "name": "Get All Questions",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/exams/questions/",
-              "host": ["{{base_url}}"],
-              "path": ["exams", "questions", ""]
-            }
-          }
-        },
-        {
           "name": "Get Question Details",
           "request": {
             "method": "GET",
