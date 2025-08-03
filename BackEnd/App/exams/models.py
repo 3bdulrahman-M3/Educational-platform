@@ -4,10 +4,7 @@ from authentication.models import User
 
 class Question(models.Model):
     QUESTION_TYPES = (
-        ('multiple_choice', 'Multiple Choice'),
-        ('true_false', 'True/False'),
-        ('essay', 'Essay'),
-        ('short_answer', 'Short Answer'),
+        ('multiple_choice', 'Multiple Choice'), 
     )
 
     text = models.TextField()
@@ -29,6 +26,25 @@ class Question(models.Model):
     class Meta:
         db_table = 'questions'
         ordering = ['-created_at']
+
+
+class Choice(models.Model):
+    question = models.ForeignKey(
+        Question, 
+        on_delete=models.CASCADE, 
+        related_name='choices'
+    )
+    text = models.CharField(max_length=255)
+    is_correct = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.question.text[:30]} - {self.text}"
+
+    class Meta:
+        db_table = 'choices'
+        ordering = ['order']
+        unique_together = ['question', 'order']
 
 
 class Exam(models.Model):
