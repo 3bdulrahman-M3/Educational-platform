@@ -1,12 +1,12 @@
 from django.contrib import admin
-from .models import Exam, Question, ExamQuestion
+from .models import Exam, Question
 
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['text', 'question_type',
+    list_display = ['text', 'exam', 'question_type',
                     'points', 'created_by', 'created_at']
-    list_filter = ['question_type', 'created_at']
+    list_filter = ['question_type', 'exam', 'created_at']
     search_fields = ['text']
     readonly_fields = ['created_at', 'updated_at']
 
@@ -21,10 +21,3 @@ class ExamAdmin(admin.ModelAdmin):
     def question_count(self, obj):
         return obj.questions.count()
     question_count.short_description = 'Questions'
-
-
-@admin.register(ExamQuestion)
-class ExamQuestionAdmin(admin.ModelAdmin):
-    list_display = ['exam', 'question', 'order']
-    list_filter = ['exam']
-    ordering = ['exam', 'order']
