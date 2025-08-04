@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Exam, Question, ExamQuestion, Choice
+from .models import Exam, Question, Choice
 from authentication.serializers import UserProfileSerializer
 
 
@@ -12,22 +12,28 @@ class ChoiceSerializer(serializers.ModelSerializer):
 class QuestionSerializer(serializers.ModelSerializer):
     created_by = UserProfileSerializer(read_only=True)
     choices = ChoiceSerializer(many=True, read_only=True)
+    exam = serializers.PrimaryKeyRelatedField(queryset=Exam.objects.all())
 
     class Meta:
         model = Question
-        fields = ['id', 'text', 'question_type', 'points',
-                  'created_by', 'created_at', 'updated_at', 'choices']
+        fields = [
+            'id', 'exam', 'text', 'question_type', 'points',
+            'created_by', 'created_at', 'updated_at', 'choices'
+        ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 
 
 class QuestionCreateSerializer(serializers.ModelSerializer):
     choices = ChoiceSerializer(many=True, required=False)
     created_by = UserProfileSerializer(read_only=True)
+    exam = serializers.PrimaryKeyRelatedField(queryset=Exam.objects.all())
 
     class Meta:
         model = Question
-        fields = ['id', 'text', 'question_type', 'points',
-                  'created_by', 'created_at', 'updated_at', 'choices']
+        fields = [
+            'id', 'exam', 'text', 'question_type', 'points',
+            'created_by', 'created_at', 'updated_at', 'choices'
+        ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 
     def _is_true_false_question(self, text):
@@ -130,14 +136,6 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
         return instance
 
 
-class ExamQuestionSerializer(serializers.ModelSerializer):
-    question = QuestionSerializer(read_only=True)
-
-    class Meta:
-        model = ExamQuestion
-        fields = ['id', 'exam', 'question', 'order']
-
-
 class ExamSerializer(serializers.ModelSerializer):
     created_by = UserProfileSerializer(read_only=True)
     questions = QuestionSerializer(many=True, read_only=True)
@@ -145,8 +143,10 @@ class ExamSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exam
-        fields = ['id', 'name', 'created_by', 'questions',
-                  'question_count', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'created_by', 'questions',
+            'question_count', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 
     def get_question_count(self, obj):
@@ -159,6 +159,8 @@ class ExamDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Exam
-        fields = ['id', 'name', 'created_by',
-                  'questions', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'created_by',
+            'questions', 'created_at', 'updated_at'
+        ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
