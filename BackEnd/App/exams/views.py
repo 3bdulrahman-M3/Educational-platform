@@ -91,9 +91,23 @@ def exam_list(request):
                 {'error': 'Only instructors can create exams'},
                 status=status.HTTP_403_FORBIDDEN
             )
+        course_id = request.data.get('course')
+        if not course_id:
+            return Response(
+                {'error': 'Course ID is required to create an exam'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        from courses.models import Course
+        try:
+            course = Course.objects.get(pk=course_id)
+        except Course.DoesNotExist:
+            return Response(
+                {'error': 'Course not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
         serializer = ExamSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(created_by=request.user)
+            exam = serializer.save(created_by=request.user, course=course)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

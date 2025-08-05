@@ -12,6 +12,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -37,12 +40,15 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'cloudinary',
+    'cloudinary_storage',
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'authentication',
-    'exams'
+    'exams',
+    'courses',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +61,22 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+cloudinary.config(
+    cloud_name='ddtp8tqvv',
+    api_key='272766425297671',
+    api_secret='o44U57Jmn3Rjtz_N2SDrpS7Mow0'
+)
+
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'ddtp8tqvv',
+    'API_KEY': '272766425297671',
+    'API_SECRET': 'o44U57Jmn3Rjtz_N2SDrpS7Mow0',
+}
+
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 ROOT_URLCONF = 'App.urls'
 
@@ -84,7 +106,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'edu',
         'USER': 'postgres',
-        'PASSWORD': '00800',
+        'PASSWORD': 'hasan99',
         'HOST': 'localhost',
         'PORT': '5432',
     }

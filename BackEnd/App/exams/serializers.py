@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Exam, Question, Choice
 from authentication.serializers import UserProfileSerializer
+from courses.models import Course
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
@@ -140,12 +141,13 @@ class ExamSerializer(serializers.ModelSerializer):
     created_by = UserProfileSerializer(read_only=True)
     questions = QuestionSerializer(many=True, read_only=True)
     question_count = serializers.SerializerMethodField()
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all())
 
     class Meta:
         model = Exam
         fields = [
             'id', 'name', 'created_by', 'questions',
-            'question_count', 'created_at', 'updated_at'
+            'question_count', 'created_at', 'updated_at', 'course'
         ]
         read_only_fields = ['created_by', 'created_at', 'updated_at']
 

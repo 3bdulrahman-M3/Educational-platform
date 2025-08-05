@@ -1,5 +1,6 @@
 from django.db import models
 from authentication.models import User
+from courses.models import Course
 
 
 class Exam(models.Model):
@@ -12,6 +13,7 @@ class Exam(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    course = models.OneToOneField(Course, on_delete=models.CASCADE, related_name='exam', null=True, blank=True)
 
     def __str__(self):
         return self.name
