@@ -13,6 +13,7 @@ Content-Type: application/json
   "email": "instructor@test.com",
   "username": "instructor1",
   "password": "testpass123",
+  "confirm_password": "testpass123",
   "role": "instructor",
   "first_name": "John",
   "last_name": "Doe"
@@ -26,6 +27,7 @@ Content-Type: application/json
   "email": "student@test.com",
   "username": "student1",
   "password": "testpass123",
+  "confirm_password": "testpass123",
   "role": "student",
   "first_name": "Jane",
   "last_name": "Smith"
