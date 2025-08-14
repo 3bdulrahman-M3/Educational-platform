@@ -11,7 +11,7 @@ from .models import User
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
-  
+
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
@@ -30,7 +30,7 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    
+
     serializer = UserLoginSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.validated_data['user']
@@ -48,6 +48,16 @@ def login(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def user(request):
+    """
+    Get current user information
+    """
+    serializer = UserProfileSerializer(request.user)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def profile(request):
 
     serializer = UserProfileSerializer(request.user)
@@ -58,7 +68,8 @@ def profile(request):
 @permission_classes([IsAuthenticated])
 def update_profile(request):
 
-    serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+    serializer = UserProfileSerializer(
+        request.user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response({
@@ -83,4 +94,4 @@ def logout(request):
         else:
             return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST) 
+        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
