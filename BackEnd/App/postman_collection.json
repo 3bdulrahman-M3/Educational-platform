@@ -113,6 +113,52 @@
               "path": ["auth", "login", ""]
             }
           }
+        },
+        {
+          "name": "Google OAuth Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"google_id_token_from_frontend\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google", ""]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth Complete Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"google_id\": \"google_user_id\",\n  \"role\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google/complete/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google", "complete", ""]
+            }
+          }
         }
       ]
     },
@@ -368,27 +414,48 @@
             }
           }
         },
-        {
-          "name": "Update User Profile",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"email\": \"updated@email.com\"\n}"
-            },
-            "url": {
-              "raw": "{{base_url}}/auth/profile/",
-              "host": ["{{base_url}}"],
-              "path": ["auth", "profile", ""]
-            }
-          }
-        },
+                 {
+           "name": "Update User Profile",
+           "request": {
+             "method": "PUT",
+             "header": [
+               {
+                 "key": "Content-Type",
+                 "value": "application/json"
+               }
+             ],
+             "body": {
+               "mode": "raw",
+               "raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"email\": \"updated@email.com\"\n}"
+             },
+             "url": {
+               "raw": "{{base_url}}/auth/profile/",
+               "host": ["{{base_url}}"],
+               "path": ["auth", "profile", ""]
+             }
+           }
+         },
+         {
+           "name": "Update User Role",
+           "request": {
+             "method": "PUT",
+             "header": [
+               {
+                 "key": "Content-Type",
+                 "value": "application/json"
+               }
+             ],
+             "body": {
+               "mode": "raw",
+               "raw": "{\n  \"role\": \"instructor\"\n}"
+             },
+             "url": {
+               "raw": "{{base_url}}/auth/role/update/",
+               "host": ["{{base_url}}"],
+               "path": ["auth", "role", "update", ""]
+             }
+           }
+         },
         {
           "name": "Logout",
           "request": {
