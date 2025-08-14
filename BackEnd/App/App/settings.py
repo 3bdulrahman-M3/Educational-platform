@@ -16,6 +16,15 @@ import cloudinary
 import cloudinary.uploader
 import cloudinary.api
 
+
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+
+# Your Google Client ID should be available as:
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

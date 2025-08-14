@@ -51,6 +51,27 @@ Content-Type: application/json
   "password": "testpass123"
 }
 
+# 5. Google OAuth Login
+POST http://localhost:8000/api/auth/google/
+Content-Type: application/json
+
+{
+  "token": "google_id_token_from_frontend"
+}
+
+# 6. Google OAuth Complete Registration
+POST http://localhost:8000/api/auth/google/complete/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "email": "user@example.com",
+  "first_name": "John",
+  "last_name": "Doe",
+  "google_id": "google_user_id",
+  "role": "student"
+}
+
 # ========================================
 # QUESTIONS ENDPOINTS
 # ========================================
@@ -298,7 +319,27 @@ Authorization: Bearer YOUR_TOKEN_HERE
   "email": "updated@email.com"
 }
 
-# 28. Logout
+# 28. Update User Role
+PUT http://localhost:8000/api/auth/role/update/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "role": "instructor"
+}
+
+# 29. Update User Profile with Role Change
+PUT http://localhost:8000/api/auth/profile/update/
+Content-Type: application/json
+Authorization: Bearer YOUR_TOKEN_HERE
+
+{
+  "first_name": "Updated",
+  "last_name": "Name",
+  "role": "admin"
+}
+
+# 30. Logout
 POST http://localhost:8000/api/auth/logout/
 Content-Type: application/json
 Authorization: Bearer YOUR_TOKEN_HERE
