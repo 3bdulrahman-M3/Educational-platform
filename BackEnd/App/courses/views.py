@@ -207,7 +207,7 @@ def get_course_enrollments(request, pk):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_student_enrollments(request, student_id):
-    enrollments = Enrollment.objects.filter(student__id=student_id)
+    enrollments = Enrollment.objects.filter(student__id=student_id, withdrawn_at__isnull=True)
     courses = [enrollment.course for enrollment in enrollments]
     serializer = CourseSerializer(courses, many=True)
     return Response(serializer.data)

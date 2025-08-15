@@ -5,4 +5,7 @@ django-cors-headers==4.7.0
 psycopg2-binary==2.9.10
 PyJWT==2.9.0
 google-auth==2.40.3
-requests==2.32.4 
+requests==2.32.4
+python-dotenv==1.0.0
+cloudinary==1.36.0
+django-cloudinary-storage==0.3.0
