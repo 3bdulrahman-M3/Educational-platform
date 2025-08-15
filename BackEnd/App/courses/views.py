@@ -135,7 +135,7 @@ def get_student_courses(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_in_course(request, pk):
-    """Student enrolls in a course."""
+    """Student enrolls (or re-enrolls) in a course."""
     if request.user.role != 'student':
         return Response({'error': 'Only students can enroll'}, status=status.HTTP_403_FORBIDDEN)
     
@@ -144,12 +144,17 @@ def enroll_in_course(request, pk):
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     
-    # Check if already enrolled
-    if Enrollment.objects.filter(student=request.user, course=course).exists():
-        return Response({'error': 'Already enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        enrollment = Enrollment.objects.get(student=request.user, course=course)
+        if enrollment.withdrawn_at is None:
+            return Response({'error': 'Already enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
+        # Re-enroll: reset withdrawn_at and update enrolled_at
+        enrollment.withdrawn_at = None
+        enrollment.enrolled_at = timezone.now()
+        enrollment.save()
+    except Enrollment.DoesNotExist:
+        enrollment = Enrollment.objects.create(student=request.user, course=course)
     
-    # Create enrollment
-    enrollment = Enrollment.objects.create(student=request.user, course=course)
     serializer = EnrollmentSerializer(enrollment)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
