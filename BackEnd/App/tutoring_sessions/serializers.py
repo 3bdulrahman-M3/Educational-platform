@@ -1,41 +1,130 @@
 from rest_framework import serializers
-from .models import Session, Participant
+from .models import (
+    Session, Participant, BookingRequest, SessionMaterial, Notification,
+    LiveParticipantState, SessionMessage, SessionRecording
+)
 from authentication.serializers import UserProfileSerializer
 
 
 class ParticipantSerializer(serializers.ModelSerializer):
     user = UserProfileSerializer(read_only=True)
-    joined_at = serializers.ReadOnlyField()
-    role = serializers.ReadOnlyField()
 
     class Meta:
         model = Participant
-        fields = ['id', 'user', 'joined_at', 'role']
+        fields = '__all__'
+
+
+class LiveParticipantStateSerializer(serializers.ModelSerializer):
+    user = UserProfileSerializer(read_only=True)
+    user_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LiveParticipantState
+        fields = '__all__'
+
+    def get_user_name(self, obj):
+        return f"{obj.user.first_name} {obj.user.last_name}"
+
+
+class SessionMessageSerializer(serializers.ModelSerializer):
+    sender = UserProfileSerializer(read_only=True)
+    sender_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SessionMessage
+        fields = '__all__'
+
+    def get_sender_name(self, obj):
+        return f"{obj.sender.first_name} {obj.sender.last_name}"
+
+
+class SessionRecordingSerializer(serializers.ModelSerializer):
+    created_by = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = SessionRecording
+        fields = '__all__'
+
+
+class BookingRequestSerializer(serializers.ModelSerializer):
+    user = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = BookingRequest
+        fields = '__all__'
+
+
+class SessionMaterialSerializer(serializers.ModelSerializer):
+    uploaded_by = UserProfileSerializer(read_only=True)
+
+    class Meta:
+        model = SessionMaterial
+        fields = '__all__'
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = '__all__'
 
 
 class SessionSerializer(serializers.ModelSerializer):
     creator = UserProfileSerializer(read_only=True)
-    participants = ParticipantSerializer(many=True, read_only=True)
+    participants = serializers.SerializerMethodField()
+    materials = serializers.SerializerMethodField()
+    booking_requests = serializers.SerializerMethodField()
+    live_participants = serializers.SerializerMethodField()
+    messages = serializers.SerializerMethodField()
+    recordings = serializers.SerializerMethodField()
     is_full = serializers.ReadOnlyField()
     available_spots = serializers.ReadOnlyField()
-    can_join = serializers.ReadOnlyField()
-    status = serializers.ReadOnlyField()
-    created_at = serializers.ReadOnlyField()
-    updated_at = serializers.ReadOnlyField()
+    participant_count = serializers.ReadOnlyField()
+    can_join = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
-        fields = [
-            'id', 'title', 'description', 'date', 'max_participants',
-            'creator', 'participants', 'status', 'created_at', 'updated_at',
-            'is_full', 'available_spots', 'can_join'
-        ]
+        fields = '__all__'
+
+    def get_participants(self, obj):
+        return ParticipantSerializer(obj.participants.all(), many=True).data
+
+    def get_materials(self, obj):
+        return SessionMaterialSerializer(obj.materials.all(), many=True).data
+
+    def get_booking_requests(self, obj):
+        return BookingRequestSerializer(obj.booking_requests.all(), many=True).data
+
+    def get_live_participants(self, obj):
+        return LiveParticipantStateSerializer(obj.live_participants.all(), many=True).data
+
+    def get_messages(self, obj):
+        return SessionMessageSerializer(obj.messages.all(), many=True).data
+
+    def get_recordings(self, obj):
+        return SessionRecordingSerializer(obj.recordings.all(), many=True).data
+
+    def get_can_join(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+
+        # Check if user is already a participant
+        if obj.participants.filter(user=request.user).exists():
+            return False
+
+        # Check if session is full
+        if obj.is_full:
+            return False
+
+        # Check if session status allows joining
+        return obj.status in ['scheduled', 'approved']
 
 
 class SessionCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session
-        fields = ['title', 'description', 'date', 'max_participants']
+        fields = ['title', 'description', 'subject', 'level', 'date', 'duration',
+                  'max_participants', 'recording_enabled', 'chat_enabled', 'screen_sharing_enabled']
 
     def validate_date(self, value):
         """Validate that session date is in the future"""
@@ -50,21 +139,24 @@ class SessionCreateSerializer(serializers.ModelSerializer):
         if value < 2:
             raise serializers.ValidationError(
                 "Minimum 2 participants required")
-        if value > 20:
+        if value > 50:
             raise serializers.ValidationError(
-                "Maximum 20 participants allowed")
+                "Maximum 50 participants allowed")
         return value
 
     def create(self, validated_data):
-        """Set creator to current user"""
+        """Set creator to current user and generate room ID"""
         validated_data['creator'] = self.context['request'].user
-        return super().create(validated_data)
+        session = super().create(validated_data)
+        session.generate_room_id()
+        return session
 
 
 class SessionUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Session
-        fields = ['title', 'description', 'date', 'max_participants']
+        fields = ['title', 'description', 'subject', 'level', 'date', 'duration', 'max_participants',
+                  'status', 'recording_enabled', 'chat_enabled', 'screen_sharing_enabled']
 
     def validate_date(self, value):
         """Validate that session date is in the future"""
@@ -79,34 +171,46 @@ class SessionUpdateSerializer(serializers.ModelSerializer):
         if value < 2:
             raise serializers.ValidationError(
                 "Minimum 2 participants required")
-        if value > 20:
+        if value > 50:
             raise serializers.ValidationError(
-                "Maximum 20 participants allowed")
+                "Maximum 50 participants allowed")
 
         # Check if reducing max_participants would kick out existing participants
         instance = self.instance
-        if instance and value < instance.participants.count():
+        if instance and value < instance.participants.filter(status='approved').count():
             raise serializers.ValidationError(
-                f"Cannot reduce max participants below current participant count ({instance.participants.count()})"
+                f"Cannot reduce max participants below current participant count ({instance.participants.filter(status='approved').count()})"
             )
         return value
 
 
 class SessionListSerializer(serializers.ModelSerializer):
     creator = UserProfileSerializer(read_only=True)
-    participant_count = serializers.SerializerMethodField()
+    participant_count = serializers.ReadOnlyField()
     is_full = serializers.ReadOnlyField()
     available_spots = serializers.ReadOnlyField()
-    can_join = serializers.ReadOnlyField()
+    can_join = serializers.SerializerMethodField()
 
     class Meta:
         model = Session
         fields = [
-            'id', 'title', 'description', 'date', 'max_participants',
-            'creator', 'status', 'created_at', 'updated_at',
+            'id', 'title', 'description', 'subject', 'level', 'date', 'duration', 'max_participants',
+            'creator', 'status', 'created_at', 'updated_at', 'room_id',
             'participant_count', 'is_full', 'available_spots', 'can_join'
         ]
 
-    def get_participant_count(self, obj):
-        """Get current number of participants"""
-        return obj.participants.count()
+    def get_can_join(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user.is_authenticated:
+            return False
+
+        # Check if user is already a participant
+        if obj.participants.filter(user=request.user).exists():
+            return False
+
+        # Check if session is full
+        if obj.is_full:
+            return False
+
+        # Check if session status allows joining
+        return obj.status in ['scheduled', 'approved']

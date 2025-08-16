@@ -33,12 +33,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94'
+SECRET_KEY = os.getenv(
+    'SECRET_KEY', 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -55,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'channels',  # Add channels for WebSocket support
     'authentication',
     'exams',
     'courses',
@@ -73,16 +75,17 @@ MIDDLEWARE = [
 ]
 
 cloudinary.config(
-    cloud_name='ddtp8tqvv',
-    api_key='272766425297671',
-    api_secret='o44U57Jmn3Rjtz_N2SDrpS7Mow0'
+    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME', 'ddtp8tqvv'),
+    api_key=os.getenv('CLOUDINARY_API_KEY', '272766425297671'),
+    api_secret=os.getenv('CLOUDINARY_API_SECRET',
+                         'o44U57Jmn3Rjtz_N2SDrpS7Mow0')
 )
 
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'ddtp8tqvv',
-    'API_KEY': '272766425297671',
-    'API_SECRET': 'o44U57Jmn3Rjtz_N2SDrpS7Mow0',
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', 'ddtp8tqvv'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY', '272766425297671'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', 'o44U57Jmn3Rjtz_N2SDrpS7Mow0'),
 }
 
 
@@ -106,7 +109,18 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'App.wsgi.application'
+ASGI_APPLICATION = 'App.asgi.application'  # Add ASGI application for WebSockets
 
+# Channels configuration for WebSocket support
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            # Use Redis Cloud URL (without database index)
+            "hosts": [os.getenv('REDIS_URL', 'redis://default:huK4JsczUVa8j0CMKg52l7a0lM8DfGtL@redis-15762.c321.us-east-1-2.ec2.redns.redis-cloud.com:15762')],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -114,11 +128,11 @@ WSGI_APPLICATION = 'App.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'edu',
-        'USER': 'postgres',
-        'PASSWORD': '00800',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME', 'edu'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', '00800'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -203,9 +217,37 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
 
-# CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+# Security Settings
+SECURE_SSL_REDIRECT = os.getenv(
+    'SECURE_SSL_REDIRECT', 'False').lower() == 'true'
+SESSION_COOKIE_SECURE = os.getenv(
+    'SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+CSRF_COOKIE_SECURE = os.getenv('CSRF_COOKIE_SECURE', 'False').lower() == 'true'
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(
+    ',') if os.getenv('CSRF_TRUSTED_ORIGINS') else []
+
+# Security Headers
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# CORS settings - More restrictive for production
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    # Add your production frontend URL here
+    # "https://your-frontend-domain.com",
+]
 CORS_ALLOW_CREDENTIALS = True
+
+# Only allow all origins in development
+if DEBUG:
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    CORS_ALLOW_ALL_ORIGINS = False
 
 # Custom user model
 AUTH_USER_MODEL = 'authentication.User'

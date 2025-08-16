@@ -63,6 +63,7 @@ def login(request):
         }, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def google_auth(request):
@@ -99,7 +100,8 @@ def google_auth(request):
                     first_name=user_info['first_name'],
                     last_name=user_info['last_name'],
                     google_id=user_info['google_id'],
-                    username=user_info['email'].split('@')[0] + '_' + str(uuid.uuid4())[:8]
+                    username=user_info['email'].split(
+                        '@')[0] + '_' + str(uuid.uuid4())[:8]
                 )
                 is_new_user = True
             except Exception as e:
@@ -141,6 +143,7 @@ def google_auth(request):
         return Response({
             'error': f'Server error: {str(e)}'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

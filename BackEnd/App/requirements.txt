@@ -8,4 +8,8 @@ google-auth==2.40.3
 requests==2.32.4
 python-dotenv==1.0.0
 cloudinary==1.36.0
-django-cloudinary-storage==0.3.0 
+django-cloudinary-storage==0.3.0
+channels==4.0.0
+channels-redis==4.1.0
+daphne==4.0.0
+redis==5.0.1 

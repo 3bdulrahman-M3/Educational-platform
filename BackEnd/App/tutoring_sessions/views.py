@@ -1,18 +1,30 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.db import models
 from django.utils import timezone
-from .models import Session, Participant
+from django.core.exceptions import PermissionDenied
+from datetime import datetime
+import pytz
+from .models import (
+    Session, Participant, BookingRequest, SessionMaterial, Notification,
+    LiveParticipantState, SessionMessage, SessionRecording
+)
 from .serializers import (
     SessionSerializer,
     SessionCreateSerializer,
     SessionUpdateSerializer,
     SessionListSerializer,
-    ParticipantSerializer
+    ParticipantSerializer,
+    BookingRequestSerializer,
+    SessionMaterialSerializer,
+    NotificationSerializer,
+    LiveParticipantStateSerializer,
+    SessionMessageSerializer,
+    SessionRecordingSerializer
 )
 
 
@@ -45,6 +57,16 @@ class SessionViewSet(viewsets.ModelViewSet):
         if status_filter:
             queryset = queryset.filter(status=status_filter)
 
+        # Filter by subject if provided
+        subject_filter = self.request.query_params.get('subject', None)
+        if subject_filter:
+            queryset = queryset.filter(subject__icontains=subject_filter)
+
+        # Filter by level if provided
+        level_filter = self.request.query_params.get('level', None)
+        if level_filter:
+            queryset = queryset.filter(level=level_filter)
+
         # Filter by date range if provided
         date_from = self.request.query_params.get('date_from', None)
         date_to = self.request.query_params.get('date_to', None)
@@ -62,8 +84,23 @@ class SessionViewSet(viewsets.ModelViewSet):
         return queryset.select_related('creator').prefetch_related('participants__user')
 
     def perform_create(self, serializer):
-        """Create session with creator validation"""
-        serializer.save(creator=self.request.user)
+        """Create session with creator validation and timezone handling"""
+        # Handle timezone conversion
+        date_data = self.request.data.get('date')
+        if date_data:
+            # Frontend sends datetime with timezone offset
+            # Convert to UTC before saving
+            user_timezone = self.request.data.get('timezone_offset', 0)
+            try:
+                # Parse the datetime and adjust for timezone
+                dt = datetime.fromisoformat(date_data.replace('Z', '+00:00'))
+                utc_dt = dt.astimezone(pytz.UTC)
+                serializer.save(creator=self.request.user, date=utc_dt)
+            except ValueError:
+                # Fallback to direct parsing if timezone info is missing
+                serializer.save(creator=self.request.user)
+        else:
+            serializer.save(creator=self.request.user)
 
     def perform_update(self, serializer):
         """Update session with creator validation"""
@@ -137,46 +174,6 @@ class SessionViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
-    def join(self, request, pk=None):
-        """Join a session"""
-        session = self.get_object()
-        user = request.user
-
-        # Check if already joined
-        if Participant.objects.filter(session=session, user=user).exists():
-            return Response(
-                {'error': 'Already joined this session'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check if session is full
-        if session.is_full:
-            return Response(
-                {'error': 'Session is full'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Check if session can be joined
-        if not session.can_join:
-            return Response(
-                {'error': 'Cannot join this session. It may be cancelled, completed, or already started'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Create participant
-        Participant.objects.create(
-            session=session,
-            user=user,
-            role='student'
-        )
-
-        serializer = SessionSerializer(session)
-        return Response({
-            'message': 'Successfully joined the session',
-            'session': serializer.data
-        }, status=status.HTTP_201_CREATED)
-
-    @action(detail=True, methods=['post'])
     def leave(self, request, pk=None):
         """Leave a session"""
         session = self.get_object()
@@ -211,17 +208,15 @@ class SessionViewSet(viewsets.ModelViewSet):
         session = self.get_object()
         user = request.user
 
-        # Check if user is creator
         if session.creator != user:
             return Response(
-                {'error': 'Only the creator can cancel a session'},
+                {'error': 'Only the creator can cancel this session'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if session can be cancelled
-        if not session.can_be_cancelled_by(user):
+        if session.status in ['completed', 'cancelled']:
             return Response(
-                {'error': 'Cannot cancel a completed or cancelled session'},
+                {'error': 'Cannot cancel completed or cancelled sessions'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -240,27 +235,20 @@ class SessionViewSet(viewsets.ModelViewSet):
         session = self.get_object()
         user = request.user
 
-        # Check if user is creator
         if session.creator != user:
             return Response(
-                {'error': 'Only the creator can start a session'},
+                {'error': 'Only the creator can start this session'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if session can be started
-        if session.status != 'upcoming':
+        if session.status not in ['approved', 'scheduled']:
             return Response(
-                {'error': 'Only upcoming sessions can be started'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if session.date > timezone.now():
-            return Response(
-                {'error': 'Cannot start session before scheduled time'},
+                {'error': 'Session must be approved or scheduled to start'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         session.status = 'ongoing'
+        session.started_at = timezone.now()
         session.save()
 
         serializer = SessionSerializer(session)
@@ -270,39 +258,290 @@ class SessionViewSet(viewsets.ModelViewSet):
         })
 
     @action(detail=True, methods=['post'])
-    def complete(self, request, pk=None):
-        """Complete a session (creator only)"""
+    def end(self, request, pk=None):
+        """End a session (creator only)"""
         session = self.get_object()
         user = request.user
 
-        # Check if user is creator
         if session.creator != user:
             return Response(
-                {'error': 'Only the creator can complete a session'},
+                {'error': 'Only the creator can end this session'},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Check if session can be completed
         if session.status != 'ongoing':
             return Response(
-                {'error': 'Only ongoing sessions can be completed'},
+                {'error': 'Session must be ongoing to end'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         session.status = 'completed'
+        session.ended_at = timezone.now()
         session.save()
 
         serializer = SessionSerializer(session)
         return Response({
-            'message': 'Session completed successfully',
+            'message': 'Session ended successfully',
             'session': serializer.data
         })
 
     @action(detail=True, methods=['get'])
-    def participants(self, request, pk=None):
-        """Get session participants"""
+    def live_participants(self, request, pk=None):
+        """Get live participant states for a session"""
         session = self.get_object()
-        participants = session.participants.all()
 
-        serializer = ParticipantSerializer(participants, many=True)
+        # Check if user can access this session
+        if not (session.creator == request.user or
+                session.participants.filter(user=request.user, status='approved').exists()):
+            return Response(
+                {'error': 'You do not have permission to view this session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        participants = LiveParticipantState.objects.filter(session=session)
+        serializer = LiveParticipantStateSerializer(participants, many=True)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        """Get chat messages for a session"""
+        session = self.get_object()
+
+        # Check if user can access this session
+        if not (session.creator == request.user or
+                session.participants.filter(user=request.user, status='approved').exists()):
+            return Response(
+                {'error': 'You do not have permission to view this session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        messages = SessionMessage.objects.filter(session=session)
+        serializer = SessionMessageSerializer(messages, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'])
+    def recordings(self, request, pk=None):
+        """Get recordings for a session"""
+        session = self.get_object()
+
+        # Check if user can access this session
+        if not (session.creator == request.user or
+                session.participants.filter(user=request.user, status='approved').exists()):
+            return Response(
+                {'error': 'You do not have permission to view this session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        recordings = SessionRecording.objects.filter(session=session)
+        serializer = SessionRecordingSerializer(recordings, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def create_recording(self, request, pk=None):
+        """Create a new recording for a session (creator only)"""
+        session = self.get_object()
+        user = request.user
+
+        if session.creator != user:
+            return Response(
+                {'error': 'Only the creator can create recordings'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        recording_url = request.data.get('recording_url')
+        duration = request.data.get('duration')
+        file_size = request.data.get('file_size')
+
+        if not recording_url:
+            return Response(
+                {'error': 'Recording URL is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        recording = SessionRecording.objects.create(
+            session=session,
+            recording_url=recording_url,
+            duration=duration,
+            file_size=file_size,
+            created_by=user
+        )
+
+        serializer = SessionRecordingSerializer(recording)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Notification.objects.filter(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def mark_as_read(self, request, pk=None):
+        notification = self.get_object()
+        notification.read = True
+        notification.save()
+        return Response({'message': 'Marked as read'})
+
+    @action(detail=False, methods=['post'])
+    def mark_all_as_read(self, request):
+        Notification.objects.filter(
+            user=request.user, read=False).update(read=True)
+        return Response({'message': 'All marked as read'})
+
+
+class SessionMaterialViewSet(viewsets.ModelViewSet):
+    serializer_class = SessionMaterialSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SessionMaterial.objects.filter(session_id=self.kwargs.get('session_pk'))
+
+    def perform_create(self, serializer):
+        session_id = self.kwargs.get('session_pk')
+        session = Session.objects.get(id=session_id)
+
+        if session.creator != self.request.user:
+            raise PermissionDenied("Only session creator can upload materials")
+
+        serializer.save(uploaded_by=self.request.user, session_id=session_id)
+
+
+# Live Session Endpoints
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def start_session(request, session_id):
+    """Start a live session (creators only)"""
+    try:
+        session = get_object_or_404(Session, id=session_id)
+
+        # Check if user is the creator
+        if session.creator != request.user:
+            return Response(
+                {'error': 'Only the session creator can start the session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check if session is in correct state
+        if session.status != 'scheduled':
+            return Response(
+                {'error': 'Session must be scheduled to start'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Start the session
+        session.status = 'ongoing'
+        session.started_at = timezone.now()
+        session.save()
+
+        return Response({
+            'message': 'Session started successfully',
+            'session': {
+                'id': session.id,
+                'status': session.status,
+                'started_at': session.started_at
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def end_session(request, session_id):
+    """End a live session (creators only)"""
+    try:
+        session = get_object_or_404(Session, id=session_id)
+
+        # Check if user is the creator
+        if session.creator != request.user:
+            return Response(
+                {'error': 'Only the session creator can end the session'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Check if session is ongoing
+        if session.status != 'ongoing':
+            return Response(
+                {'error': 'Session is not currently ongoing'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # End the session
+        session.status = 'completed'
+        session.ended_at = timezone.now()
+        session.save()
+
+        return Response({
+            'message': 'Session ended successfully',
+            'session': {
+                'id': session.id,
+                'status': session.status,
+                'ended_at': session.ended_at
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def join_live_session(request, session_id):
+    """Join a live session (participants only)"""
+    try:
+        session = get_object_or_404(Session, id=session_id)
+
+        # Check if session is ongoing
+        if session.status != 'ongoing':
+            return Response(
+                {'error': 'Session is not currently ongoing'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if user is approved participant
+        if not session.participants.filter(user=request.user, status='approved').exists():
+            return Response(
+                {'error': 'You must be an approved participant to join'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return Response({
+            'message': 'Joined live session successfully',
+            'session': {
+                'id': session.id,
+                'status': session.status
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def leave_live_session(request, session_id):
+    """Leave a live session"""
+    try:
+        session = get_object_or_404(Session, id=session_id)
+
+        return Response({
+            'message': 'Left live session successfully'
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
