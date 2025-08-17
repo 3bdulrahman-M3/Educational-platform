@@ -1,0 +1,483 @@
+{
+  "info": {
+    "name": "Educational Platform API - Updated",
+    "description": "Complete API collection for testing the Educational Platform with Exams and Questions (One-to-Many Relationship)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Instructor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"instructor@test.com\",\n  \"username\": \"instructor1\",\n  \"password\": \"testpass123\",\n  \"confirm_password\": \"testpass123\",\n  \"role\": \"instructor\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Register Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@test.com\",\n  \"username\": \"student1\",\n  \"password\": \"testpass123\",\n  \"confirm_password\": \"testpass123\",\n  \"role\": \"student\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Login Instructor",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"instructor@test.com\",\n  \"password\": \"testpass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Login Student",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"student@test.com\",\n  \"password\": \"testpass123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"google_id_token_from_frontend\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google", ""]
+            }
+          }
+        },
+        {
+          "name": "Google OAuth Complete Registration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"google_id\": \"google_user_id\",\n  \"role\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/google/complete/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "google", "complete", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exams",
+      "item": [
+        {
+          "name": "Create Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Python Basics Exam\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Exams (All or by ID)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Exam by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/exams/exams/?exam_id=1",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""],
+              "query": [
+                {
+                  "key": "exam_id",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Exam",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1,\n  \"name\": \"Updated Exam Name\",\n  \"questions\": [\n    {\n      \"id\": 1,\n      \"text\": \"Updated question text\",\n      \"points\": 10,\n      \"choices\": [\n        {\n          \"text\": \"Updated Option A\",\n          \"is_correct\": true,\n          \"order\": 1\n        },\n        {\n          \"text\": \"Updated Option B\",\n          \"is_correct\": false,\n          \"order\": 2\n        }\n      ]\n    },\n    {\n      \"text\": \"New question added to exam\",\n      \"question_type\": \"multiple_choice\",\n      \"points\": 5,\n      \"choices\": [\n        {\n          \"text\": \"New Option 1\",\n          \"is_correct\": true,\n          \"order\": 1\n        },\n        {\n          \"text\": \"New Option 2\",\n          \"is_correct\": false,\n          \"order\": 2\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Exam",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/exams/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "exams", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "item": [
+        {
+          "name": "Create Question for Exam (True/False Auto-detected)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"Is this the answer is either True or False? Python is a programming language.\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question for Exam (True/False Alternative)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"Is the answer True or False? Django is a web framework.\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question for Exam (Multiple Choice with Custom Choices)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"What is the capital of France?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 5,\n  \"choices\": [\n    {\n      \"text\": \"London\",\n      \"is_correct\": false,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Paris\",\n      \"is_correct\": true,\n      \"order\": 2\n    },\n    {\n      \"text\": \"Berlin\",\n      \"is_correct\": false,\n      \"order\": 3\n    },\n    {\n      \"text\": \"Madrid\",\n      \"is_correct\": false,\n      \"order\": 4\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question for Exam (Multiple Choice with True/False Options)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"Which of the following statements about Python are correct?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 10,\n  \"choices\": [\n    {\n      \"text\": \"Python is an interpreted language\",\n      \"is_correct\": true,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Python is a compiled language\",\n      \"is_correct\": false,\n      \"order\": 2\n    },\n    {\n      \"text\": \"Python supports object-oriented programming\",\n      \"is_correct\": true,\n      \"order\": 3\n    },\n    {\n      \"text\": \"Python is a low-level language\",\n      \"is_correct\": false,\n      \"order\": 4\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Question for Exam (Default True/False)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"Is JavaScript a programming language?\",\n  \"question_type\": \"multiple_choice\",\n  \"points\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Question",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exam\": 1,\n  \"text\": \"Updated question text\",\n  \"points\": 10,\n  \"choices\": [\n    {\n      \"text\": \"Option A\",\n      \"is_correct\": true,\n      \"order\": 1\n    },\n    {\n      \"text\": \"Option B\",\n      \"is_correct\": false,\n      \"order\": 2\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "1", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Question",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/exams/questions/1/",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "questions", "1", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Profile",
+      "item": [
+        {
+          "name": "Get User Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile", ""]
+            }
+          }
+        },
+                 {
+           "name": "Update User Profile",
+           "request": {
+             "method": "PUT",
+             "header": [
+               {
+                 "key": "Content-Type",
+                 "value": "application/json"
+               }
+             ],
+             "body": {
+               "mode": "raw",
+               "raw": "{\n  \"first_name\": \"Updated\",\n  \"last_name\": \"Name\",\n  \"email\": \"updated@email.com\"\n}"
+             },
+             "url": {
+               "raw": "{{base_url}}/auth/profile/",
+               "host": ["{{base_url}}"],
+               "path": ["auth", "profile", ""]
+             }
+           }
+         },
+         {
+           "name": "Update User Role",
+           "request": {
+             "method": "PUT",
+             "header": [
+               {
+                 "key": "Content-Type",
+                 "value": "application/json"
+               }
+             ],
+             "body": {
+               "mode": "raw",
+               "raw": "{\n  \"role\": \"instructor\"\n}"
+             },
+             "url": {
+               "raw": "{{base_url}}/auth/role/update/",
+               "host": ["{{base_url}}"],
+               "path": ["auth", "role", "update", ""]
+             }
+           }
+         },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
