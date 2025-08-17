@@ -21,7 +21,7 @@ def register(request):
             'user': UserProfileSerializer(user).data,
             'tokens': {
                 'access': str(refresh.access_token),
-                'refresh': str(refresh),
+                # 'refresh': str(refresh),
             }
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -40,7 +40,7 @@ def login(request):
             'user': UserProfileSerializer(user).data,
             'tokens': {
                 'access': str(refresh.access_token),
-                'refresh': str(refresh),
+                # 'refresh': str(refresh),
             }
         }, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

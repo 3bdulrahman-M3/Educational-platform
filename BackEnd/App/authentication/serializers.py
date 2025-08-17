@@ -47,7 +47,16 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image')
         read_only_fields = ('id', 'date_joined') 
+
+    def get_image(self, obj):
+        if obj.image:
+            try:
+                return obj.image.url
+            except AttributeError:
+                return obj.image
+        return None
