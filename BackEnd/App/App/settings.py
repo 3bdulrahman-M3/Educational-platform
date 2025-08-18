@@ -14,7 +14,6 @@ from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
 import cloudinary
-import os
 import cloudinary.uploader
 import cloudinary.api
 import dj_database_url
@@ -33,9 +32,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "") != "False"
+DEBUG = True
 
-ALLOWED_HOSTS = ['localhost']
+ALLOWED_HOSTS = []
+
 
 # Application definition
 
@@ -107,14 +107,7 @@ WSGI_APPLICATION = 'App.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'edu',
-        'USER': 'postgres',
-        'PASSWORD': 'hasan99',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
+    'default': dj_database_url.config(default=os.environ.get("DATABASE_URL"))
 }
 
 
