@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 import cloudinary
+import os
 import cloudinary.uploader
 import cloudinary.api
 
@@ -27,10 +28,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "") != "False"
 
 ALLOWED_HOSTS = []
 
+ALLOWED_HOSTS = ['.onrender.com']
 
 # Application definition
 
@@ -107,7 +109,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'edu',
         'USER': 'postgres',
-        'PASSWORD': 'hasan99',
+        'PASSWORD': '00800',
         'HOST': 'localhost',
         'PORT': '5432',
     }
