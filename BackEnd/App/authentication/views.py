@@ -1,11 +1,12 @@
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from .serializers import UserRegistrationSerializer, UserLoginSerializer, UserProfileSerializer
 from .models import User
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 @api_view(['POST'])
@@ -56,6 +57,7 @@ def profile(request):
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def update_profile(request):
 
     serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
@@ -83,4 +85,4 @@ def logout(request):
         else:
             return Response({'error': 'Refresh token is required'}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
-        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST) 
+        return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)

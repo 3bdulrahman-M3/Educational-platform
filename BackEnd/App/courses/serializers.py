@@ -4,15 +4,18 @@ from authentication.serializers import UserProfileSerializer
 
 class CourseSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
-    category = serializers.CharField(source='category.name', read_only=True)
+    category = serializers.PrimaryKeyRelatedField(
+        queryset=Category.objects.all(), write_only=True, required=False, allow_null=True
+    )
+    category_name = serializers.CharField(source='category.name', read_only=True)
     is_enrolled = serializers.SerializerMethodField()
-    instructor_name = serializers.SerializerMethodField()  # Add this field
+    instructor_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = [
             'id', 'title', 'description', 'image', 'instructor',
-            'instructor_name', 'category', 'is_enrolled'
+            'instructor_name', 'category', 'category_name', 'is_enrolled'
         ]
 
     def get_is_enrolled(self, obj):
