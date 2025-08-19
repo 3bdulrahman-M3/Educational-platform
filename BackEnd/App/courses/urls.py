@@ -16,4 +16,8 @@ urlpatterns = [
     path('categories/', views.get_all_categories, name='get_all_categories'),  # <-- Added route
     path('instructors/', views.get_instructors, name='get_instructors'),  # All instructors with search
     path('instructors/<int:instructor_id>/', views.get_instructor_with_courses, name='get_instructor_with_courses'),  # Instructor with courses
+    # videos
+    path('<int:pk>/videos/', views.list_course_videos, name='list_course_videos'),
+    path('<int:pk>/videos/create/', views.create_course_video, name='create_course_video'),
+    path('videos/<int:video_id>/', views.update_delete_video, name='update_delete_video'),
 ]
