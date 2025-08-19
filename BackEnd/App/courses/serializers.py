@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Enrollment, Category
+from .models import Course, Enrollment, Category, Video
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 
@@ -52,3 +52,17 @@ class InstructorSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'email', 'username', 'first_name', 'last_name', 'role'
         )
+
+
+class VideoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Video
+        fields = ['id', 'course', 'title', 'url', 'file', 'description', 'order', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at', 'course']
+
+    def validate(self, attrs):
+        url = attrs.get('url')
+        file = attrs.get('file')
+        if not url and not file:
+            raise serializers.ValidationError('Either a URL or a file must be provided for the video.')
+        return attrs

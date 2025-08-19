@@ -105,6 +105,8 @@ def exam_list(request):
                 {'error': 'Course not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+        if course.instructor_id != request.user.id:
+            return Response({'error': 'Only the course instructor can create an exam for this course'}, status=status.HTTP_403_FORBIDDEN)
         serializer = ExamSerializer(data=request.data)
         if serializer.is_valid():
             exam = serializer.save(created_by=request.user, course=course)

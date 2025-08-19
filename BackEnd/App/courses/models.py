@@ -35,3 +35,22 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student.email} enrolled in {self.course.title}"
+
+
+class Video(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='videos')
+    title = models.CharField(max_length=255)
+    # Optional direct URL if instructor wants to link from YouTube/Vimeo/etc.
+    url = models.URLField(max_length=1000, blank=True, null=True)
+    # Optional uploaded video file via Cloudinary
+    file = CloudinaryField('video', resource_type='video', blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f"{self.title} ({self.course.title})"

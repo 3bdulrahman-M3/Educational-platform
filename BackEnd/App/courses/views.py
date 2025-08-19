@@ -3,8 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated,AllowAny
 from rest_framework.response import Response
 from rest_framework import status,parsers, generics
-from .models import Course, Enrollment, Category
-from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer
+from .models import Course, Enrollment, Category, Video
+from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
 from exams.serializers import ExamSerializer
 from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
@@ -199,7 +199,11 @@ def get_course_by_id(request, pk):
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = CourseSerializer(course, context={'request': request})  # Pass context
-    return Response(serializer.data)
+    data = serializer.data
+    # include videos
+    videos = Video.objects.filter(course=course)
+    data['videos'] = VideoSerializer(videos, many=True).data
+    return Response(data)
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -207,3 +211,61 @@ def get_all_categories(request):
     categories = Category.objects.all()
     serializer = CategorySerializer(categories, many=True)
     return Response(serializer.data)
+
+
+# ========== VIDEO ENDPOINTS ==========
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def list_course_videos(request, pk):
+    try:
+        course = Course.objects.get(pk=pk)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    videos = Video.objects.filter(course=course)
+    return Response(VideoSerializer(videos, many=True).data)
+
+
+@api_view(['POST'])
+@parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+@permission_classes([IsAuthenticated])
+def create_course_video(request, pk):
+    try:
+        course = Course.objects.get(pk=pk)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    if request.user.role != 'instructor' or course.instructor_id != request.user.id:
+        return Response({'error': 'Only the course instructor can add videos'}, status=status.HTTP_403_FORBIDDEN)
+    payload = request.data.copy()
+    payload['course'] = course.id
+    serializer = VideoSerializer(data=payload)
+    if serializer.is_valid():
+        try:
+            serializer.save(course=course)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT', 'DELETE'])
+@parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+@permission_classes([IsAuthenticated])
+def update_delete_video(request, video_id):
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return Response({'error': 'Video not found'}, status=status.HTTP_404_NOT_FOUND)
+    if request.user.role != 'instructor' or video.course.instructor_id != request.user.id:
+        return Response({'error': 'Only the course instructor can modify videos'}, status=status.HTTP_403_FORBIDDEN)
+    if request.method == 'DELETE':
+        video.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    serializer = VideoSerializer(video, data=request.data, partial=True)
+    if serializer.is_valid():
+        try:
+            serializer.save()
+            return Response(serializer.data)
+        except Exception as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
