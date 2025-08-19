@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Course, Enrollment, Category
 from authentication.serializers import UserProfileSerializer
+from authentication.models import User
 
 class CourseSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)
@@ -43,3 +44,11 @@ class CategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = Category
         fields = ['id', 'name', 'image_url']
+
+
+class InstructorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = (
+            'id', 'email', 'username', 'first_name', 'last_name', 'role'
+        )

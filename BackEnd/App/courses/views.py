@@ -152,13 +152,13 @@ def get_student_enrollments(request, student_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_in_course(request, pk):
-    """Student enrolls in a course."""
+    """Enroll authenticated user in a course (students and instructors allowed)."""
     try:
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    if request.user.role != 'student':
-        return Response({'error': 'Only students can enroll'}, status=status.HTTP_403_FORBIDDEN)
+    if request.user.role not in ('student', 'instructor'):
+        return Response({'error': 'Only students or instructors can enroll'}, status=status.HTTP_403_FORBIDDEN)
     if Enrollment.objects.filter(student=request.user, course=course).exists():
         return Response({'error': 'Already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
     Enrollment.objects.create(student=request.user, course=course)
@@ -167,13 +167,13 @@ def enroll_in_course(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def withdraw_from_course(request, pk):
-    """Student withdraws from a course."""
+    """Withdraw authenticated user from a course (students and instructors allowed)."""
     try:
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    if request.user.role != 'student':
-        return Response({'error': 'Only students can withdraw'}, status=status.HTTP_403_FORBIDDEN)
+    if request.user.role not in ('student', 'instructor'):
+        return Response({'error': 'Only students or instructors can withdraw'}, status=status.HTTP_403_FORBIDDEN)
     enrollment = Enrollment.objects.filter(student=request.user, course=course).first()
     if not enrollment:
         return Response({'error': 'Not enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
