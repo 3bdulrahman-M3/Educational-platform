@@ -38,7 +38,7 @@ class UserProfile(models.Model):
         'image',
         blank=True,
         null=True,
-        default='https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg?semt=ais_hybrid&w=740&q=80'
+        default='https://www.gravatar.com/avatar/?d=mp'
     )
     bio = models.TextField(blank=True)
     location = models.CharField(max_length=30, blank=True)

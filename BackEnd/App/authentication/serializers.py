@@ -47,7 +47,7 @@ class UserLoginSerializer(serializers.Serializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    image = serializers.ImageField(required=False, allow_null=True)  # <-- Writable!
     class Meta:
         model = User
         fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image')
