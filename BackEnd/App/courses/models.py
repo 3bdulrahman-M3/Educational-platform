@@ -13,6 +13,7 @@ class Course(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     image = CloudinaryField('image', blank=True, null=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, db_column='Price')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -21,7 +22,6 @@ class Course(models.Model):
         null=True,
         blank=True
     )  # Added creator field
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, db_column='Price')  # Renamed to 'price' for consistency
     def __str__(self):
         return self.title
 
