@@ -11,12 +11,14 @@ class CourseSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True)
     is_enrolled = serializers.SerializerMethodField()
     instructor_name = serializers.SerializerMethodField()
+    enrollments_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = [
             'id', 'title', 'description', 'image', 'instructor',
-            'instructor_name', 'category', 'category_name', 'is_enrolled'
+            'instructor_name', 'category', 'category_name', 'is_enrolled',
+            'enrollments_count'
         ]
 
     def get_is_enrolled(self, obj):
@@ -31,6 +33,9 @@ class CourseSerializer(serializers.ModelSerializer):
             last = obj.instructor.last_name or ""
             return f"{first} {last}".strip()
         return ""
+
+    def get_enrollments_count(self, obj):
+        return Enrollment.objects.filter(course=obj).count()
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     student = UserProfileSerializer(read_only=True)
