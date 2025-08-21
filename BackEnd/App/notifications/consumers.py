@@ -6,26 +6,6 @@ from .models import Notification
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-<<<<<<< HEAD
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.room_name = f"user_{self.user.id}"
-            await self.channel_layer.group_add(self.room_name, self.channel_name)
-            await self.accept()
-            print(f"User {self.user.email} connected to notifications")
-        else:
-            await self.close()
-
-    async def disconnect(self, close_code):
-        if hasattr(self, 'room_name'):
-            await self.channel_layer.group_discard(self.room_name, self.channel_name)
-            print(
-                f"User {self.user.email if self.user.is_authenticated else 'Anonymous'} disconnected")
-
-    async def notify(self, event):
-        """Send notification to WebSocket"""
-        await self.send(text_data=json.dumps(event["data"]))
-=======
         await self.accept()
         self.user = None
         self.room_name = None
@@ -34,25 +14,15 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         if self.room_name:
             await self.channel_layer.group_discard(self.room_name, self.channel_name)
-            print("❌ WebSocket disconnected")
->>>>>>> origin/notification
+            print(f"❌ WebSocket disconnected ({self.user.email if self.user else 'Unauthenticated'})")
 
     async def receive(self, text_data):
         """Handle incoming messages from WebSocket"""
         try:
             data = json.loads(text_data)
-<<<<<<< HEAD
-            message_type = data.get('type', 'message')
-
-            if message_type == 'mark_read':
-                notification_id = data.get('notification_id')
-                if notification_id:
-                    await self.mark_notification_read(notification_id)
-        except json.JSONDecodeError:
-            pass
-=======
             message_type = data.get('type')
 
+            # Handle authentication
             if message_type == 'auth' and not self.user:
                 token = data.get('token')
                 if token:
@@ -62,7 +32,6 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                         self.room_name = f"user_{self.user.id}"
                         await self.channel_layer.group_add(self.room_name, self.channel_name)
                         print(f"✅ Authenticated: {self.user.email}")
-
                         await self.send_json({
                             'type': 'auth_success',
                             'message': 'Successfully authenticated'
@@ -74,6 +43,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                     await self.send_json({'type': 'auth_error', 'message': 'No token provided'})
                     await self.close()
 
+            # Handle marking notification as read
             elif message_type == 'mark_read' and self.user:
                 notification_id = data.get('notification_id')
                 if notification_id:
@@ -94,6 +64,16 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(content))
 
     @database_sync_to_async
+    def mark_notification_read(self, notification_id):
+        """Mark notification as read"""
+        try:
+            notification = Notification.objects.get(id=notification_id, receiver=self.user)
+            notification.is_read = True
+            notification.save()
+        except Notification.DoesNotExist:
+            pass
+
+    @database_sync_to_async
     def get_user_from_token(self, token):
         """Get user from JWT token"""
         try:
@@ -104,21 +84,3 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             return User.objects.get(id=access_token['user_id'])
         except Exception:
             return None
->>>>>>> origin/notification
-
-    @database_sync_to_async
-    def mark_notification_read(self, notification_id):
-        """Mark notification as read"""
-        try:
-            notification = Notification.objects.get(
-<<<<<<< HEAD
-                id=notification_id,
-                recipient=self.user
-=======
-                id=notification_id, receiver=self.user
->>>>>>> origin/notification
-            )
-            notification.is_read = True
-            notification.save()
-        except Notification.DoesNotExist:
-            pass
