@@ -13,7 +13,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Notification.objects.filter(recipient=self.request.user)
+        return Notification.objects.filter(receiver=self.request.user)
 
     @action(detail=True, methods=['patch'])
     def mark_read(self, request, pk=None):
@@ -38,13 +38,24 @@ class NotificationViewSet(viewsets.ModelViewSet):
 # Utility function to send notifications
 
 
-def send_notification(user_id, notification_type, title, message, data=None):
-    """Send a notification to a user via WebSocket"""
+def send_notification(sender_id, receiver_id, notification_type, title, message, data=None):
+    """
+    Send a notification from sender to receiver
+
+    Args:
+        sender_id: ID of the user sending the notification (can be None for system notifications)
+        receiver_id: ID of the user receiving the notification
+        notification_type: Type of notification (from NOTIFICATION_TYPES)
+        title: Notification title
+        message: Notification message
+        data: Additional data (optional)
+    """
     from .models import Notification
 
     # Create notification in database
     notification = Notification.objects.create(
-        recipient_id=user_id,
+        sender_id=sender_id,
+        receiver_id=receiver_id,
         notification_type=notification_type,
         title=title,
         message=message,
@@ -54,16 +65,21 @@ def send_notification(user_id, notification_type, title, message, data=None):
     # Send via WebSocket
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
-        f"user_{user_id}",
+        f"user_{receiver_id}",
         {
             "type": "notify",
             "data": {
                 "id": notification.id,
+                "sender": notification.sender_id,
+                "sender_name": notification.sender.get_full_name() if notification.sender else "System",
+                "receiver": notification.receiver_id,
+                "receiver_name": notification.receiver.get_full_name(),
                 "title": notification.title,
                 "message": notification.message,
                 "notification_type": notification.notification_type,
                 "is_read": notification.is_read,
                 "created_at": notification.created_at.isoformat(),
+                "data": notification.data
             }
         }
     )
