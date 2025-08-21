@@ -344,3 +344,55 @@ def update_delete_video(request, video_id):
         except Exception as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def notify_students(request, pk):
+    """Send notification to all enrolled students when instructor makes course updates"""
+    try:
+        course = Course.objects.get(pk=pk)
+
+        # Check if user is the course instructor
+        if course.instructor != request.user:
+            return Response({'error': 'Only the course instructor can send notifications'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get notification data from request
+        title = request.data.get('title')
+        message = request.data.get('message')
+        update_type = request.data.get('update_type', 'course_update')
+
+        if not title or not message:
+            return Response({'error': 'Title and message are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get all enrolled students
+        enrollments = Enrollment.objects.filter(course=course)
+        student_count = 0
+
+        # Send notification to each enrolled student
+        for enrollment in enrollments:
+            send_notification(
+                sender_id=request.user.id,  # Instructor is the sender
+                receiver_id=enrollment.student.id,  # Student is the receiver
+                notification_type='course_update',
+                title=title,
+                message=message,
+                data={
+                    'course_id': course.id,
+                    'course_title': course.title,
+                    'instructor_name': course.instructor.get_full_name(),
+                    'update_type': update_type
+                }
+            )
+            student_count += 1
+
+        return Response({
+            'message': f'Notification sent to {student_count} enrolled students',
+            'student_count': student_count,
+            'course_title': course.title
+        }, status=status.HTTP_200_OK)
+
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
