@@ -135,6 +135,8 @@ def get_courses(request):
         'category')  # e.g. ?category=1&category=2
     category_ids = request.query_params.getlist(
         'category')  # e.g. ?category=1&category=2
+    instructor_name = request.query_params.get('instructor')  
+    price = request.query_params.get('price')
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
 
@@ -149,6 +151,36 @@ def get_courses(request):
     if category_ids:
         courses = courses.filter(category__id__in=category_ids)
 
+    if instructor_name:
+        # Split the search term into parts for more flexible matching
+        search_terms = instructor_name.strip().split()
+        
+        # Build a more comprehensive search query
+        instructor_query = Q()
+        
+        # If multiple terms, search for exact first+last name combination
+        if len(search_terms) > 1:
+            # Search for first name + last name combination
+            instructor_query |= (
+                Q(instructor__first_name__icontains=search_terms[0]) & 
+                Q(instructor__last_name__icontains=search_terms[-1])
+            )
+            # Also search for last name + first name combination
+            instructor_query |= (
+                Q(instructor__first_name__icontains=search_terms[-1]) & 
+                Q(instructor__last_name__icontains=search_terms[0])
+            )
+        else:
+            # Single term - search in both first and last name
+            instructor_query |= (
+                Q(instructor__first_name__icontains=instructor_name) |
+                Q(instructor__last_name__icontains=instructor_name)
+            )
+        
+        courses = courses.filter(instructor_query)
+    # Price filter
+    if price:
+        courses = courses.filter(price=price)
     # Pagination
     total = courses.count()
     start = (page - 1) * limit
