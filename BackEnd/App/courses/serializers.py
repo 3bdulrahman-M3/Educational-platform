@@ -16,7 +16,7 @@ class CourseSerializer(serializers.ModelSerializer):
         model = Course
         fields = [
             'id', 'title', 'description', 'image', 'instructor',
-            'instructor_name', 'category', 'category_name', 'is_enrolled'
+            'instructor_name', 'category', 'category_name', 'is_enrolled', 'price'
         ]
 
     def get_is_enrolled(self, obj):

@@ -21,7 +21,7 @@ class Course(models.Model):
         null=True,
         blank=True
     )  # Added creator field
-
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, db_column='Price')  # Renamed to 'price' for consistency
     def __str__(self):
         return self.title
 
