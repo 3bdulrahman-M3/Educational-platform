@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated,  AllowAny
 from rest_framework.response import Response
+from rest_framework import status, parsers, generics
 from rest_framework import status, parsers, generics
 from .models import Course, Enrollment, Category, Video
 from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
@@ -10,6 +11,8 @@ from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 from django.db import models
+from django.db.models import Q
+from notifications.views import send_notification
 from django.db.models import Q
 from notifications.views import send_notification
 
@@ -56,7 +59,22 @@ def create_course(request):
         return Response({'error': 'Only instructors can create courses.'}, status=status.HTTP_403_FORBIDDEN)
     serializer = CourseSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(instructor=request.user)
+        course = serializer.save(instructor=request.user)
+
+        # 🔔 Send notification to all students about new course
+        try:
+            students = User.objects.filter(role='student')
+            for student in students:
+                send_notification(
+                    sender_id=request.user.id,
+                    receiver_id=student.id,
+                    notification_type='course_created',
+                    title=f"New Course Available",
+                    message=f"New course '{course.title}' is now available!"
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -73,7 +91,24 @@ def update_course(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = CourseSerializer(course, data=request.data, partial=True)
     if serializer.is_valid():
-        serializer.save()
+        course = serializer.save()
+
+        # 🔔 Send notification to all enrolled students about course update
+        try:
+            enrolled_students = User.objects.filter(
+                enrollments__course=course
+            ).distinct()
+            for student in enrolled_students:
+                send_notification(
+                    sender_id=request.user.id,
+                    receiver_id=student.id,
+                    notification_type='course_updated',
+                    title=f"Course Updated",
+                    message=f"Course '{course.title}' has been updated!"
+                )
+        except Exception as e:
+            print(f"Notification error: {e}")
+
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -96,6 +131,8 @@ def delete_course(request, pk):
 def get_courses(request):
     # Query params
     search = request.query_params.get('search')
+    category_ids = request.query_params.getlist(
+        'category')  # e.g. ?category=1&category=2
     category_ids = request.query_params.getlist(
         'category')  # e.g. ?category=1&category=2
     page = int(request.query_params.get('page', 1))
@@ -179,7 +216,21 @@ def enroll_in_course(request, pk):
         return Response({'error': 'Only students or instructors can enroll'}, status=status.HTTP_403_FORBIDDEN)
     if Enrollment.objects.filter(student=request.user, course=course).exists():
         return Response({'error': 'Already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
-    Enrollment.objects.create(student=request.user, course=course)
+
+    enrollment = Enrollment.objects.create(student=request.user, course=course)
+
+    # 🔔 Send notification to instructor about new enrollment
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=course.instructor.id,
+            notification_type='course_enrollment',
+            title=f"New Student Enrollment",
+            message=f"{request.user.first_name} {request.user.last_name} enrolled in '{course.title}'"
+        )
+    except Exception as e:
+        print(f"Notification error: {e}")
+
     return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
 
 
@@ -218,6 +269,8 @@ def get_course_by_id(request, pk):
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    serializer = CourseSerializer(
+        course, context={'request': request})  # Pass context
     serializer = CourseSerializer(
         course, context={'request': request})  # Pass context
     data = serializer.data
@@ -291,54 +344,3 @@ def update_delete_video(request, video_id):
         except Exception as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def notify_students(request, pk):
-    """Send notification to all enrolled students when instructor makes course updates"""
-    try:
-        course = Course.objects.get(pk=pk)
-
-        # Check if user is the course instructor
-        if course.instructor != request.user:
-            return Response({'error': 'Only the course instructor can send notifications'}, status=status.HTTP_403_FORBIDDEN)
-
-        # Get notification data from request
-        title = request.data.get('title')
-        message = request.data.get('message')
-        update_type = request.data.get('update_type', 'course_update')
-
-        if not title or not message:
-            return Response({'error': 'Title and message are required'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Get all enrolled students
-        enrollments = Enrollment.objects.filter(course=course)
-        student_count = 0
-
-        # Send notification to each enrolled student
-        for enrollment in enrollments:
-            send_notification(
-                user_id=enrollment.student.id,
-                notification_type='course_update',
-                title=title,
-                message=message,
-                data={
-                    'course_id': course.id,
-                    'course_title': course.title,
-                    'instructor_name': course.instructor.get_full_name(),
-                    'update_type': update_type
-                }
-            )
-            student_count += 1
-
-        return Response({
-            'message': f'Notification sent to {student_count} enrolled students',
-            'student_count': student_count,
-            'course_title': course.title
-        }, status=status.HTTP_200_OK)
-
-    except Course.DoesNotExist:
-        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

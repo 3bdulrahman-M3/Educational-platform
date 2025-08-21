@@ -13,7 +13,11 @@ class NotificationViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+<<<<<<< HEAD
         return Notification.objects.filter(recipient=self.request.user)
+=======
+        return Notification.objects.filter(receiver=self.request.user)
+>>>>>>> origin/notification
 
     @action(detail=True, methods=['patch'])
     def mark_read(self, request, pk=None):
@@ -38,13 +42,33 @@ class NotificationViewSet(viewsets.ModelViewSet):
 # Utility function to send notifications
 
 
+<<<<<<< HEAD
 def send_notification(user_id, notification_type, title, message, data=None):
     """Send a notification to a user via WebSocket"""
+=======
+def send_notification(sender_id, receiver_id, notification_type, title, message, data=None):
+    """
+    Send a notification from sender to receiver
+
+    Args:
+        sender_id: ID of the user sending the notification (can be None for system notifications)
+        receiver_id: ID of the user receiving the notification
+        notification_type: Type of notification (from NOTIFICATION_TYPES)
+        title: Notification title
+        message: Notification message
+        data: Additional data (optional)
+    """
+>>>>>>> origin/notification
     from .models import Notification
 
     # Create notification in database
     notification = Notification.objects.create(
+<<<<<<< HEAD
         recipient_id=user_id,
+=======
+        sender_id=sender_id,
+        receiver_id=receiver_id,
+>>>>>>> origin/notification
         notification_type=notification_type,
         title=title,
         message=message,
@@ -54,16 +78,31 @@ def send_notification(user_id, notification_type, title, message, data=None):
     # Send via WebSocket
     channel_layer = get_channel_layer()
     async_to_sync(channel_layer.group_send)(
+<<<<<<< HEAD
         f"user_{user_id}",
+=======
+        f"user_{receiver_id}",
+>>>>>>> origin/notification
         {
             "type": "notify",
             "data": {
                 "id": notification.id,
+<<<<<<< HEAD
+=======
+                "sender": notification.sender_id,
+                "sender_name": notification.sender.get_full_name() if notification.sender else "System",
+                "receiver": notification.receiver_id,
+                "receiver_name": notification.receiver.get_full_name(),
+>>>>>>> origin/notification
                 "title": notification.title,
                 "message": notification.message,
                 "notification_type": notification.notification_type,
                 "is_read": notification.is_read,
                 "created_at": notification.created_at.isoformat(),
+<<<<<<< HEAD
+=======
+                "data": notification.data
+>>>>>>> origin/notification
             }
         }
     )
