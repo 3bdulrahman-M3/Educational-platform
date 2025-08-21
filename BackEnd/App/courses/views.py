@@ -1,8 +1,8 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated,AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework import status,parsers, generics
+from rest_framework import status, parsers, generics
 from .models import Course, Enrollment, Category, Video
 from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
 from exams.serializers import ExamSerializer
@@ -10,8 +10,11 @@ from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 from django.db import models
+from django.db.models import Q
+from notifications.views import send_notification
 
 # Create your views here.
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -28,6 +31,7 @@ def get_instructors(request):
     serializer = InstructorSerializer(instructors, many=True)
     return Response(serializer.data)
 
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_instructor_with_courses(request, instructor_id):
@@ -38,11 +42,14 @@ def get_instructor_with_courses(request, instructor_id):
     from .serializers import InstructorSerializer, CourseSerializer
     instructor_data = InstructorSerializer(instructor).data
     courses = instructor.created_courses.all()
-    courses_data = CourseSerializer(courses, many=True, context={'request': request}).data  # Pass context
+    courses_data = CourseSerializer(courses, many=True, context={
+                                    'request': request}).data  # Pass context
     instructor_data['courses'] = courses_data
     return Response(instructor_data)
 
-@api_view(['POST'])# @parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+
+# @parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_course(request):
     if request.user.role != 'instructor':
@@ -53,7 +60,9 @@ def create_course(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@api_view(['PUT'])# @parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+
+# @parser_classes([parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser])
+@api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_course(request, pk):
     if request.user.role != 'instructor':
@@ -68,6 +77,7 @@ def update_course(request, pk):
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_course(request, pk):
@@ -80,12 +90,14 @@ def delete_course(request, pk):
     course.delete()
     return Response({'message': 'Course deleted successfully'}, status=status.HTTP_200_OK)
 
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_courses(request):
     # Query params
     search = request.query_params.get('search')
-    category_ids = request.query_params.getlist('category')  # e.g. ?category=1&category=2
+    category_ids = request.query_params.getlist(
+        'category')  # e.g. ?category=1&category=2
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
 
@@ -106,7 +118,8 @@ def get_courses(request):
     end = start + limit
     courses_page = courses[start:end]
 
-    serializer = CourseSerializer(courses_page, many=True, context={'request': request})  # Pass context
+    serializer = CourseSerializer(courses_page, many=True, context={
+                                  'request': request})  # Pass context
     return Response({
         'results': serializer.data,
         'total': total,
@@ -114,6 +127,7 @@ def get_courses(request):
         'limit': limit,
         'pages': (total + limit - 1) // limit
     })
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -129,6 +143,7 @@ def get_course_exam(request, pk):
     serializer = ExamSerializer(exam)
     return Response(serializer.data)
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_course_enrollments(request, pk):
@@ -141,13 +156,16 @@ def get_course_enrollments(request, pk):
     serializer = UserProfileSerializer(students, many=True)
     return Response(serializer.data)
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_student_enrollments(request, student_id):
     enrollments = Enrollment.objects.filter(student__id=student_id)
     courses = [enrollment.course for enrollment in enrollments]
-    serializer = CourseSerializer(courses, many=True, context={'request': request})  # Pass context
+    serializer = CourseSerializer(courses, many=True, context={
+                                  'request': request})  # Pass context
     return Response(serializer.data)
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -164,6 +182,7 @@ def enroll_in_course(request, pk):
     Enrollment.objects.create(student=request.user, course=course)
     return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def withdraw_from_course(request, pk):
@@ -174,12 +193,12 @@ def withdraw_from_course(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     if request.user.role not in ('student', 'instructor'):
         return Response({'error': 'Only students or instructors can withdraw'}, status=status.HTTP_403_FORBIDDEN)
-    enrollment = Enrollment.objects.filter(student=request.user, course=course).first()
+    enrollment = Enrollment.objects.filter(
+        student=request.user, course=course).first()
     if not enrollment:
         return Response({'error': 'Not enrolled in this course'}, status=status.HTTP_400_BAD_REQUEST)
     enrollment.delete()
     return Response({'message': 'Withdrawn successfully'}, status=status.HTTP_200_OK)
-
 
 
 @api_view(['POST'])
@@ -191,6 +210,7 @@ def create_category(request):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_course_by_id(request, pk):
@@ -198,12 +218,14 @@ def get_course_by_id(request, pk):
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    serializer = CourseSerializer(course, context={'request': request})  # Pass context
+    serializer = CourseSerializer(
+        course, context={'request': request})  # Pass context
     data = serializer.data
     # include videos
     videos = Video.objects.filter(course=course)
     data['videos'] = VideoSerializer(videos, many=True).data
     return Response(data)
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -269,3 +291,54 @@ def update_delete_video(request, video_id):
         except Exception as exc:
             return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def notify_students(request, pk):
+    """Send notification to all enrolled students when instructor makes course updates"""
+    try:
+        course = Course.objects.get(pk=pk)
+
+        # Check if user is the course instructor
+        if course.instructor != request.user:
+            return Response({'error': 'Only the course instructor can send notifications'}, status=status.HTTP_403_FORBIDDEN)
+
+        # Get notification data from request
+        title = request.data.get('title')
+        message = request.data.get('message')
+        update_type = request.data.get('update_type', 'course_update')
+
+        if not title or not message:
+            return Response({'error': 'Title and message are required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get all enrolled students
+        enrollments = Enrollment.objects.filter(course=course)
+        student_count = 0
+
+        # Send notification to each enrolled student
+        for enrollment in enrollments:
+            send_notification(
+                user_id=enrollment.student.id,
+                notification_type='course_update',
+                title=title,
+                message=message,
+                data={
+                    'course_id': course.id,
+                    'course_title': course.title,
+                    'instructor_name': course.instructor.get_full_name(),
+                    'update_type': update_type
+                }
+            )
+            student_count += 1
+
+        return Response({
+            'message': f'Notification sent to {student_count} enrolled students',
+            'student_count': student_count,
+            'course_title': course.title
+        }, status=status.HTTP_200_OK)
+
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

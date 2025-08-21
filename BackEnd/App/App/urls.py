@@ -22,5 +22,6 @@ urlpatterns = [
     path('api/auth/', include('authentication.urls')),
     path('api/exams/', include('exams.urls')),
     path('api/courses/', include('courses.urls')),
-    path('api/live/', include('liveSessions.urls'))
+    path('api/live/', include('liveSessions.urls')),
+    path('api/', include('notifications.urls')),
 ]
