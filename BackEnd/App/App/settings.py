@@ -20,7 +20,7 @@ import dj_database_url
 import os
 
 
-load_dotenv() 
+load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,10 +29,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94'
+SECRET_KEY = os.environ.get(
+    'SECRET_KEY', 'django-insecure-4gc)hbky(7_427+cq@#bawq#&yi6tq#-1zia8b%wa42jqlzy94')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = []
 
@@ -54,7 +55,8 @@ INSTALLED_APPS = [
     'authentication',
     'exams',
     'courses',
-    'liveSessions'
+    'liveSessions',
+    'notifications',
 ]
 
 MIDDLEWARE = [
@@ -69,16 +71,17 @@ MIDDLEWARE = [
 ]
 
 cloudinary.config(
-    cloud_name='ddtp8tqvv',
-    api_key='272766425297671',
-    api_secret='o44U57Jmn3Rjtz_N2SDrpS7Mow0'
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', 'ddtp8tqvv'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY', '272766425297671'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET',
+                              'o44U57Jmn3Rjtz_N2SDrpS7Mow0')
 )
 
 
 CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': 'ddtp8tqvv',
-    'API_KEY': '272766425297671',
-    'API_SECRET': 'o44U57Jmn3Rjtz_N2SDrpS7Mow0',
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME', 'ddtp8tqvv'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY', '272766425297671'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET', 'o44U57Jmn3Rjtz_N2SDrpS7Mow0'),
 }
 
 
@@ -197,3 +200,28 @@ CORS_ALLOW_CREDENTIALS = True
 
 # Custom user model
 AUTH_USER_MODEL = 'authentication.User'
+
+# Channels Configuration for WebSocket support
+ASGI_APPLICATION = 'App.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [{
+                "host": os.environ.get('REDIS_HOST', 'redis-15762.c321.us-east-1-2.ec2.redns.redis-cloud.com'),
+                "port": int(os.environ.get('REDIS_PORT', 15762)),
+                "username": os.environ.get('REDIS_USERNAME', 'default'),
+                "password": os.environ.get('REDIS_PASSWORD', ''),
+            }],
+        },
+    },
+}
+
+# Redis Configuration
+REDIS_HOST = os.environ.get(
+    'REDIS_HOST', 'redis-15762.c321.us-east-1-2.ec2.redns.redis-cloud.com')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 15762))
+REDIS_USERNAME = os.environ.get('REDIS_USERNAME', 'default')
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+REDIS_DB = int(os.environ.get('REDIS_DB', 0))
