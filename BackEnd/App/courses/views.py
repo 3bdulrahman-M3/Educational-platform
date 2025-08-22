@@ -1,11 +1,14 @@
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated,  AllowAny
 from rest_framework.response import Response
 from rest_framework import status, parsers, generics
 from rest_framework import status, parsers, generics
-from .models import Course, Enrollment, Category, Video
-from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
+from .models import Course, Enrollment, Category, Video, Purchase, Order, OrderItem
+from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer, PurchaseSerializer, OrderSerializer
 from exams.serializers import ExamSerializer
 from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
@@ -15,6 +18,8 @@ from django.db.models import Q
 from notifications.views import send_notification
 from django.db.models import Q
 from notifications.views import send_notification
+from django.utils import timezone
+import json
 
 # Create your views here.
 
@@ -236,6 +241,16 @@ def get_student_enrollments(request, student_id):
     return Response(serializer.data)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_user_enrollments(request):
+    """Get enrollments for the currently authenticated user"""
+    enrollments = Enrollment.objects.filter(student=request.user)
+    serializer = EnrollmentSerializer(enrollments, many=True, context={
+                                  'request': request})  # Pass context
+    return Response(serializer.data)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_in_course(request, pk):
@@ -428,3 +443,198 @@ def notify_students(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# ========== PURCHASE ENDPOINTS ==========
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def purchase_course(request, course_id):
+    """Simple purchase endpoint - creates purchase record and returns success"""
+    try:
+        course = get_object_or_404(Course, id=course_id)
+        user = request.user
+        
+        # Check if already purchased
+        if Purchase.objects.filter(student=user, course=course).exists():
+            return Response(
+                {"error": "Course already purchased"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if already enrolled
+        if Enrollment.objects.filter(student=user, course=course).exists():
+            return Response(
+                {"error": "Already enrolled in this course"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create purchase record
+        purchase = Purchase.objects.create(
+            student=user,
+            course=course,
+            amount_paid=course.price,
+            payment_status='completed'
+        )
+        
+        # If free course, auto-enroll
+        if course.is_free:
+            Enrollment.objects.create(
+                student=user,
+                course=course
+            )
+            return Response({
+                "message": "Free course enrolled successfully",
+                "purchase_id": purchase.id,
+                "enrolled": True
+            })
+        
+        # For paid courses, return purchase info for checkout
+        return Response({
+            "message": "Purchase created successfully",
+            "purchase_id": purchase.id,
+            "course_id": course.id,
+            "course_title": course.title,
+            "amount": str(course.price),
+            "redirect_to_checkout": True
+        })
+        
+    except Exception as e:
+        return Response(
+            {"error": str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def confirm_purchase(request, purchase_id):
+    """Confirm a purchase after payment"""
+    try:
+        purchase = Purchase.objects.get(pk=purchase_id, student=request.user)
+    except Purchase.DoesNotExist:
+        return Response({'error': 'Purchase not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    payment_method = request.data.get('payment_method', 'stripe')
+    transaction_id = request.data.get('transaction_id')
+    
+    # Mark purchase as paid
+    purchase.payment_method = payment_method
+    purchase.mark_as_paid(transaction_id)
+    
+    return Response({
+        'message': 'Purchase confirmed successfully',
+        'purchase_id': purchase.id,
+        'course_title': purchase.course.title
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_purchases(request):
+    """Get all purchases for the current user"""
+    purchases = Purchase.objects.filter(student=request.user).order_by('-purchased_at')
+    serializer = PurchaseSerializer(purchases, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_order(request):
+    """Create an order for multiple courses"""
+    courses_data = request.data.get('courses', [])
+    
+    if not courses_data:
+        return Response({'error': 'No courses provided'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Calculate total amount
+    total_amount = 0
+    courses_to_add = []
+    
+    for course_data in courses_data:
+        course_id = course_data.get('course_id')
+        try:
+            course = Course.objects.get(pk=course_id)
+            if not course.is_free:
+                total_amount += course.price
+            courses_to_add.append(course)
+        except Course.DoesNotExist:
+            return Response({'error': f'Course {course_id} not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Create order
+    order = Order.objects.create(
+        student=request.user,
+        total_amount=total_amount
+    )
+    
+    # Add courses to order
+    for course in courses_to_add:
+        order.add_course(course, course.price)
+    
+    return Response({
+        'message': 'Order created successfully',
+        'order_id': order.id,
+        'total_amount': float(total_amount),
+        'items_count': len(courses_to_add)
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def complete_order(request, order_id):
+    """Complete an order after payment"""
+    try:
+        order = Order.objects.get(pk=order_id, student=request.user)
+    except Order.DoesNotExist:
+        return Response({'error': 'Order not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    if order.status == 'completed':
+        return Response({'error': 'Order already completed'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Complete the order
+    order.complete_order()
+    
+    return Response({
+        'message': 'Order completed successfully',
+        'order_id': order.id,
+        'total_amount': float(order.total_amount)
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_orders(request):
+    """Get all orders for the current user"""
+    orders = Order.objects.filter(student=request.user).order_by('-created_at')
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_course_access(request, course_id):
+    """Check if user has access to a course (enrolled or purchased)"""
+    try:
+        course = Course.objects.get(pk=course_id)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check if enrolled
+    is_enrolled = Enrollment.objects.filter(student=request.user, course=course).exists()
+    
+    # Check if purchased
+    is_purchased = Purchase.objects.filter(
+        student=request.user, 
+        course=course, 
+        payment_status='completed'
+    ).exists()
+    
+    has_access = is_enrolled or is_purchased or course.is_free
+    
+    return Response({
+        'has_access': has_access,
+        'is_enrolled': is_enrolled,
+        'is_purchased': is_purchased,
+        'is_free': course.is_free,
+        'course_title': course.title
+    })

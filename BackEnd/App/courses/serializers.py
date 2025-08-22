@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Course, Enrollment, Category, Video
+from .models import Course, Enrollment, Category, Video, Purchase, Order, OrderItem
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 
@@ -12,14 +12,20 @@ class CourseSerializer(serializers.ModelSerializer):
     is_enrolled = serializers.SerializerMethodField()
     instructor_name = serializers.SerializerMethodField()
     enrollments_count = serializers.SerializerMethodField()
+    is_free = serializers.ReadOnlyField()
+    has_discount = serializers.ReadOnlyField()
+    discount_amount = serializers.ReadOnlyField()
+    display_price = serializers.ReadOnlyField()
+    display_original_price = serializers.ReadOnlyField()
 
     class Meta:
         model = Course
         fields = [
             'id', 'title', 'description', 'image', 'instructor',
             'instructor_name', 'category', 'category_name', 'is_enrolled',
-            'enrollments_count',
-            'instructor_name', 'category', 'category_name', 'is_enrolled', 'price'
+            'enrollments_count', 'price', 'original_price', 'discount_percentage',
+            'pricing_type', 'duration', 'level', 'created_at', 'updated_at',
+            'is_free', 'has_discount', 'discount_amount', 'display_price', 'display_original_price'
         ]
 
     def get_is_enrolled(self, obj):
@@ -37,6 +43,41 @@ class CourseSerializer(serializers.ModelSerializer):
 
     def get_enrollments_count(self, obj):
         return Enrollment.objects.filter(course=obj).count()
+
+
+class PurchaseSerializer(serializers.ModelSerializer):
+    course = CourseSerializer(read_only=True)
+    student = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = Purchase
+        fields = [
+            'id', 'student', 'course', 'amount_paid', 'payment_status',
+            'payment_method', 'transaction_id', 'purchased_at', 'payment_completed_at'
+        ]
+        read_only_fields = ['student', 'purchased_at', 'payment_completed_at']
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    course = CourseSerializer(read_only=True)
+    
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'course', 'price']
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    order_items = OrderItemSerializer(many=True, read_only=True)
+    student = UserProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'student', 'total_amount', 'status', 'created_at',
+            'completed_at', 'order_items', 'items_count'
+        ]
+        read_only_fields = ['student', 'created_at', 'completed_at']
+
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     student = UserProfileSerializer(read_only=True)
