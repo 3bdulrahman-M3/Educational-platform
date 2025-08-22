@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'courses',
     'liveSessions',
     'notifications',
+    'oauth2',
 ]
 
 MIDDLEWARE = [
