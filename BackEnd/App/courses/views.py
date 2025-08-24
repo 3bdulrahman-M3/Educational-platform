@@ -4,8 +4,8 @@ from rest_framework.permissions import IsAuthenticated,  AllowAny
 from rest_framework.response import Response
 from rest_framework import status, parsers, generics
 from rest_framework import status, parsers, generics
-from .models import Course, Enrollment, Category, Video
-from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
+from .models import Course, Enrollment, Category, Video, CourseReview, CourseNote
+from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer, CourseReviewSerializer, CourseNoteSerializer
 from exams.serializers import ExamSerializer
 from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
@@ -17,6 +17,10 @@ from django.db.models import Q
 from notifications.views import send_notification
 
 # Create your views here.
+
+
+def is_enrolled(user, course):
+    return Enrollment.objects.filter(student=user, course=course).exists()
 
 
 @api_view(['GET'])
@@ -428,3 +432,134 @@ def notify_students(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- REVIEWS ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_review(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+    if not is_enrolled(request.user, course):
+        return Response({'error': 'You must be enrolled to review'}, status=403)
+    if CourseReview.objects.filter(course=course, rater=request.user).exists():
+        return Response({'error': 'You have already reviewed this course'}, status=400)
+    serializer = CourseReviewSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(course=course, rater=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_review(request, review_id):
+    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    if not review:
+        return Response({'error': 'Review not found or not yours'}, status=404)
+    serializer = CourseReviewSerializer(review, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_review(request, review_id):
+    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    if not review:
+        return Response({'error': 'Review not found or not yours'}, status=404)
+    review.delete()
+    return Response({'message': 'Review deleted'}, status=204)
+
+# --- NOTES ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_note(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+    if not is_enrolled(request.user, course):
+        return Response({'error': 'You must be enrolled to add notes'}, status=403)
+    serializer = CourseNoteSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(course=course, author=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_note(request, note_id):
+    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
+    if not note:
+        return Response({'error': 'Note not found or not yours'}, status=404)
+    serializer = CourseNoteSerializer(note, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_note(request, note_id):
+    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
+    if not note:
+        return Response({'error': 'Note not found or not yours'}, status=404)
+    note.delete()
+    return Response({'message': 'Note deleted'}, status=204)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_course_reviews(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+
+    # Pagination params
+    page = int(request.query_params.get('page', 1))
+    limit = int(request.query_params.get('limit', 5))
+
+    reviews = CourseReview.objects.filter(course=course)
+    total = reviews.count()
+
+    start = (page - 1) * limit
+    end = start + limit
+    reviews_page = reviews[start:end]
+
+    serializer = CourseReviewSerializer(reviews_page, many=True)
+    return Response({
+        'results': serializer.data,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'pages': (total + limit - 1) // limit
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_course_notes(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+
+    # Pagination params
+    page = int(request.query_params.get('page', 1))
+    limit = int(request.query_params.get('limit', 5))
+
+    notes = CourseNote.objects.filter(course=course)
+    total = notes.count()
+
+    start = (page - 1) * limit
+    end = start + limit
+    notes_page = notes[start:end]
+
+    serializer = CourseNoteSerializer(notes_page, many=True)
+    return Response({
+        'results': serializer.data,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'pages': (total + limit - 1) // limit
+    })
