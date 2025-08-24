@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
+    # Courses
     path('', views.get_courses, name='get_courses'),
     path('<int:pk>/', views.get_course_by_id, name='get_course_by_id'),
     path('create/', views.create_course, name='create_course'),
@@ -18,4 +19,17 @@ urlpatterns = [
          views.get_instructor_with_courses, name='get_instructor_with_courses'),
     path('<int:pk>/notify-students/',
          views.notify_students, name='notify_students'),
+
+    # Reviews
+
+    path('<int:course_id>/reviews/list/', views.get_course_reviews, name='get_course_reviews'),
+    path('<int:course_id>/reviews/', views.create_review, name='create_review'),
+    path('reviews/<int:review_id>/', views.edit_review, name='edit_review'),
+    path('reviews/<int:review_id>/delete/', views.delete_review, name='delete_review'),
+
+    # Notes
+    path('<int:course_id>/notes/list/', views.get_course_notes, name='get_course_notes'),
+    path('<int:course_id>/notes/', views.create_note, name='create_note'),
+    path('notes/<int:note_id>/', views.edit_note, name='edit_note'),
+    path('notes/<int:note_id>/delete/', views.delete_note, name='delete_note'),
 ]

@@ -21,10 +21,10 @@ class User(AbstractUser):
         null=True,
         default='https://img.freepik.com/free-photo/learning-education-ideas-insight-intelligence-study-concept_53876-120116.jpg?semt=ais_hybrid&w=740&q=80'
     )
-    
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'role']
-    
+
     def __str__(self):
         return self.email
     
