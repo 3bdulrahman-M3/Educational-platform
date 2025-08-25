@@ -20,8 +20,12 @@ urlpatterns = [
     path('<int:pk>/notify-students/',
          views.notify_students, name='notify_students'),
 
-    # Reviews
+    # Payment endpoints
+    path('<int:course_id>/payment/initiate/', views.initiate_payment, name='initiate_payment'),
+    path('payment/<int:payment_id>/complete/', views.complete_payment, name='complete_payment'),
+    path('payment/<int:payment_id>/status/', views.get_payment_status, name='get_payment_status'),
 
+    # Reviews
     path('<int:course_id>/reviews/list/', views.get_course_reviews, name='get_course_reviews'),
     path('<int:course_id>/reviews/', views.create_review, name='create_review'),
     path('reviews/<int:review_id>/', views.edit_review, name='edit_review'),
