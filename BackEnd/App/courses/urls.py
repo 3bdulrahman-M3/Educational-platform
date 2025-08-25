@@ -19,8 +19,24 @@ urlpatterns = [
          views.get_instructor_with_courses, name='get_instructor_with_courses'),
     path('<int:pk>/notify-students/',
          views.notify_students, name='notify_students'),
-    # Video endpoints
+
     path('<int:pk>/videos/', views.list_course_videos, name='list_course_videos'),
     path('<int:pk>/videos/create/', views.create_course_video, name='create_course_video'),
     path('videos/<int:video_id>/', views.update_delete_video, name='update_delete_video'),
+    # Payment endpoints
+    path('<int:course_id>/payment/initiate/', views.initiate_payment, name='initiate_payment'),
+    path('payment/<int:payment_id>/complete/', views.complete_payment, name='complete_payment'),
+    path('payment/<int:payment_id>/status/', views.get_payment_status, name='get_payment_status'),
+
+    # Reviews
+    path('<int:course_id>/reviews/list/', views.get_course_reviews, name='get_course_reviews'),
+    path('<int:course_id>/reviews/', views.create_review, name='create_review'),
+    path('reviews/<int:review_id>/', views.edit_review, name='edit_review'),
+    path('reviews/<int:review_id>/delete/', views.delete_review, name='delete_review'),
+
+    # Notes
+    path('<int:course_id>/notes/list/', views.get_course_notes, name='get_course_notes'),
+    path('<int:course_id>/notes/', views.create_note, name='create_note'),
+    path('notes/<int:note_id>/', views.edit_note, name='edit_note'),
+    path('notes/<int:note_id>/delete/', views.delete_note, name='delete_note'),
 ]
