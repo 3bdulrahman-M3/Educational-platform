@@ -1,26 +1,20 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view, permission_classes, parser_classes
-from rest_framework.permissions import IsAuthenticated,  AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status, parsers, generics
-from rest_framework import status, parsers, generics
-from .models import Course, Enrollment, Category, Video, CourseReview, CourseNote
-from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer, CourseReviewSerializer, CourseNoteSerializer
+from .models import Course, Enrollment, Category, Video
+from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
 from exams.serializers import ExamSerializer
 from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 from django.db import models
-from django.db.models import Q
-from notifications.views import send_notification
-from django.db.models import Q
+from django.db.models import Q, Count
+from decimal import Decimal, InvalidOperation
 from notifications.views import send_notification
 
 # Create your views here.
-
-
-def is_enrolled(user, course):
-    return Enrollment.objects.filter(student=user, course=course).exists()
 
 
 @api_view(['GET'])
@@ -63,22 +57,7 @@ def create_course(request):
         return Response({'error': 'Only instructors can create courses.'}, status=status.HTTP_403_FORBIDDEN)
     serializer = CourseSerializer(data=request.data)
     if serializer.is_valid():
-        course = serializer.save(instructor=request.user)
-
-        # 🔔 Send notification to all students about new course
-        try:
-            students = User.objects.filter(role='student')
-            for student in students:
-                send_notification(
-                    sender_id=request.user.id,
-                    receiver_id=student.id,
-                    notification_type='course_created',
-                    title=f"New Course Available",
-                    message=f"New course '{course.title}' is now available!"
-                )
-        except Exception as e:
-            print(f"Notification error: {e}")
-
+        serializer.save(instructor=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -95,24 +74,7 @@ def update_course(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     serializer = CourseSerializer(course, data=request.data, partial=True)
     if serializer.is_valid():
-        course = serializer.save()
-
-        # 🔔 Send notification to all enrolled students about course update
-        try:
-            enrolled_students = User.objects.filter(
-                enrollments__course=course
-            ).distinct()
-            for student in enrolled_students:
-                send_notification(
-                    sender_id=request.user.id,
-                    receiver_id=student.id,
-                    notification_type='course_updated',
-                    title=f"Course Updated",
-                    message=f"Course '{course.title}' has been updated!"
-                )
-        except Exception as e:
-            print(f"Notification error: {e}")
-
+        serializer.save()
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,12 +99,17 @@ def get_courses(request):
     search = request.query_params.get('search')
     category_ids = request.query_params.getlist(
         'category')  # e.g. ?category=1&category=2
-    category_ids = request.query_params.getlist(
-        'category')  # e.g. ?category=1&category=2
     instructor_name = request.query_params.get('instructor')  
     price = request.query_params.get('price')
+    price_min = request.query_params.get('price_min') or request.query_params.get('min_price')
+    price_max = request.query_params.get('price_max') or request.query_params.get('max_price')
+    price_range = request.query_params.get('price_range')  # accepts formats like "10-50" or "10,50"
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
+    sort = request.query_params.get('sort')  # e.g., 'top_sellers'
+    # Filter for top sellers (by number of enrollments)
+    top_sellers = request.query_params.get('top_sellers')
+    min_enrollments_param = request.query_params.get('min_enrollments')
 
     # Base queryset
     courses = Course.objects.all()
@@ -183,8 +150,65 @@ def get_courses(request):
         
         courses = courses.filter(instructor_query)
     # Price filter
-    if price:
-        courses = courses.filter(price=price)
+    # Backwards compatible exact price match
+    if price and not (price_min or price_max or price_range):
+        try:
+            courses = courses.filter(price=Decimal(price))
+        except (InvalidOperation, TypeError):
+            pass
+
+    # Range-based price filtering
+    min_value = None
+    max_value = None
+
+    # Parse price_range if provided (e.g., "10-50" or "10,50")
+    if price_range and not (price_min or price_max):
+        separator = '-' if '-' in price_range else ',' if ',' in price_range else None
+        if separator:
+            parts = [p.strip() for p in price_range.split(separator, 1)]
+            if parts and parts[0] != '':
+                try:
+                    min_value = Decimal(parts[0])
+                except InvalidOperation:
+                    min_value = None
+            if len(parts) > 1 and parts[1] != '':
+                try:
+                    max_value = Decimal(parts[1])
+                except InvalidOperation:
+                    max_value = None
+
+    # Parse explicit min/max if provided
+    if price_min:
+        try:
+            min_value = Decimal(price_min)
+        except InvalidOperation:
+            min_value = None
+    if price_max:
+        try:
+            max_value = Decimal(price_max)
+        except InvalidOperation:
+            max_value = None
+
+    if min_value is not None:
+        courses = courses.filter(price__gte=min_value)
+    if max_value is not None:
+        courses = courses.filter(price__lte=max_value)
+    # Top sellers filter (enrollments > 0 by default, or >= min_enrollments)
+    if top_sellers in ('1', 'true', 'True', 'yes', 'on') or (min_enrollments_param is not None):
+        try:
+            min_enrollments = int(min_enrollments_param) if min_enrollments_param is not None else 1
+        except (TypeError, ValueError):
+            min_enrollments = 1
+        courses = courses.annotate(num_enrollments=Count('enrollments')).filter(num_enrollments__gte=min_enrollments)
+
+    # Sorting
+    if sort == 'top_sellers':
+        # Order by number of enrollments descending
+        if 'num_enrollments' in [a.name for a in courses.query.annotations.values()]:
+            courses = courses.order_by('-num_enrollments', '-id')
+        else:
+            courses = courses.annotate(num_enrollments=Count('enrollments')).order_by('-num_enrollments', '-id')
+
     # Pagination
     total = courses.count()
     start = (page - 1) * limit
@@ -252,21 +276,7 @@ def enroll_in_course(request, pk):
         return Response({'error': 'Only students or instructors can enroll'}, status=status.HTTP_403_FORBIDDEN)
     if Enrollment.objects.filter(student=request.user, course=course).exists():
         return Response({'error': 'Already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
-
-    enrollment = Enrollment.objects.create(student=request.user, course=course)
-
-    # 🔔 Send notification to instructor about new enrollment
-    try:
-        send_notification(
-            sender_id=request.user.id,
-            receiver_id=course.instructor.id,
-            notification_type='course_enrollment',
-            title=f"New Student Enrollment",
-            message=f"{request.user.first_name} {request.user.last_name} enrolled in '{course.title}'"
-        )
-    except Exception as e:
-        print(f"Notification error: {e}")
-
+    Enrollment.objects.create(student=request.user, course=course)
     return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
 
 
@@ -305,8 +315,6 @@ def get_course_by_id(request, pk):
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    serializer = CourseSerializer(
-        course, context={'request': request})  # Pass context
     serializer = CourseSerializer(
         course, context={'request': request})  # Pass context
     data = serializer.data
@@ -408,8 +416,7 @@ def notify_students(request, pk):
         # Send notification to each enrolled student
         for enrollment in enrollments:
             send_notification(
-                sender_id=request.user.id,  # Instructor is the sender
-                receiver_id=enrollment.student.id,  # Student is the receiver
+                user_id=enrollment.student.id,
                 notification_type='course_update',
                 title=title,
                 message=message,
@@ -432,134 +439,3 @@ def notify_students(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-# --- REVIEWS ---
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_review(request, course_id):
-    course = Course.objects.filter(pk=course_id).first()
-    if not course:
-        return Response({'error': 'Course not found'}, status=404)
-    if not is_enrolled(request.user, course):
-        return Response({'error': 'You must be enrolled to review'}, status=403)
-    if CourseReview.objects.filter(course=course, rater=request.user).exists():
-        return Response({'error': 'You have already reviewed this course'}, status=400)
-    serializer = CourseReviewSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(course=course, rater=request.user)
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def edit_review(request, review_id):
-    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
-    if not review:
-        return Response({'error': 'Review not found or not yours'}, status=404)
-    serializer = CourseReviewSerializer(review, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=400)
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_review(request, review_id):
-    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
-    if not review:
-        return Response({'error': 'Review not found or not yours'}, status=404)
-    review.delete()
-    return Response({'message': 'Review deleted'}, status=204)
-
-# --- NOTES ---
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_note(request, course_id):
-    course = Course.objects.filter(pk=course_id).first()
-    if not course:
-        return Response({'error': 'Course not found'}, status=404)
-    if not is_enrolled(request.user, course):
-        return Response({'error': 'You must be enrolled to add notes'}, status=403)
-    serializer = CourseNoteSerializer(data=request.data)
-    if serializer.is_valid():
-        serializer.save(course=course, author=request.user)
-        return Response(serializer.data, status=201)
-    return Response(serializer.errors, status=400)
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def edit_note(request, note_id):
-    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
-    if not note:
-        return Response({'error': 'Note not found or not yours'}, status=404)
-    serializer = CourseNoteSerializer(note, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=400)
-
-@api_view(['DELETE'])
-@permission_classes([IsAuthenticated])
-def delete_note(request, note_id):
-    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
-    if not note:
-        return Response({'error': 'Note not found or not yours'}, status=404)
-    note.delete()
-    return Response({'message': 'Note deleted'}, status=204)
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_course_reviews(request, course_id):
-    course = Course.objects.filter(pk=course_id).first()
-    if not course:
-        return Response({'error': 'Course not found'}, status=404)
-
-    # Pagination params
-    page = int(request.query_params.get('page', 1))
-    limit = int(request.query_params.get('limit', 5))
-
-    reviews = CourseReview.objects.filter(course=course)
-    total = reviews.count()
-
-    start = (page - 1) * limit
-    end = start + limit
-    reviews_page = reviews[start:end]
-
-    serializer = CourseReviewSerializer(reviews_page, many=True)
-    return Response({
-        'results': serializer.data,
-        'total': total,
-        'page': page,
-        'limit': limit,
-        'pages': (total + limit - 1) // limit
-    })
-
-
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_course_notes(request, course_id):
-    course = Course.objects.filter(pk=course_id).first()
-    if not course:
-        return Response({'error': 'Course not found'}, status=404)
-
-    # Pagination params
-    page = int(request.query_params.get('page', 1))
-    limit = int(request.query_params.get('limit', 5))
-
-    notes = CourseNote.objects.filter(course=course)
-    total = notes.count()
-
-    start = (page - 1) * limit
-    end = start + limit
-    notes_page = notes[start:end]
-
-    serializer = CourseNoteSerializer(notes_page, many=True)
-    return Response({
-        'results': serializer.data,
-        'total': total,
-        'page': page,
-        'limit': limit,
-        'pages': (total + limit - 1) // limit
-    })
