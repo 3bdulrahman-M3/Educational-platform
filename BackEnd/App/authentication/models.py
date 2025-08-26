@@ -15,11 +15,12 @@ class User(AbstractUser):
     last_name = models.CharField(max_length=30, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+    bio = models.TextField(blank=True, default='This user prefers to keep an air of mystery about them.')
     image = CloudinaryField(
         'image',
         blank=True,
         null=True,
-        default='https://img.freepik.com/free-photo/learning-education-ideas-insight-intelligence-study-concept_53876-120116.jpg?semt=ais_hybrid&w=740&q=80'
+        default='https://res.cloudinary.com/ddtp8tqvv/image/upload/v1756197579/teenage-girl-with-headphones-laptop-online-school_lxptu5.jpg'
     )
 
     USERNAME_FIELD = 'email'

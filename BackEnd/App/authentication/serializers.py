@@ -50,7 +50,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)  # <-- Writable!
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image', 'bio')
         read_only_fields = ('id', 'date_joined') 
 
     def get_image(self, obj):
