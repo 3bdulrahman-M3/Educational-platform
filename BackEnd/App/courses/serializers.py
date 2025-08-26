@@ -1,26 +1,62 @@
 from rest_framework import serializers
+from django.db import models
 from .models import Course, Enrollment, Category, Video, CourseReview, CourseNote
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 
 class CourseSerializer(serializers.ModelSerializer):
+    instructor_profile = UserProfileSerializer(source="instructor", read_only=True)
     image = serializers.ImageField(required=False, allow_null=True)
     category = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), write_only=True, required=False, allow_null=True
     )
     category_name = serializers.CharField(source='category.name', read_only=True)
+
     is_enrolled = serializers.SerializerMethodField()
-    instructor_name = serializers.SerializerMethodField()
     enrollments_count = serializers.SerializerMethodField()
+    average_rating = serializers.SerializerMethodField()
+    ratings_count = serializers.SerializerMethodField()
+    video_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = [
-            'id', 'title', 'description', 'image', 'instructor',
-            'instructor_name', 'category', 'category_name', 'is_enrolled',
+            'id',
+            'title',
+            'description',
+            'image',
+            'price',
+            'category',
+            'category_name',
+            'instructor',
+            'instructor_profile',
+            'is_enrolled',
             'enrollments_count',
-            'instructor_name', 'category', 'category_name', 'is_enrolled', 'price'
+            'average_rating',
+            'ratings_count',
+            'video_count',
+
+            # new model fields
+            'duration',
+            'level',
+            'language',
+            'learning_objectives',
+            'requirements',
+            'target_audience',
+
+            # timestamps
+            'created_at',
+            'updated_at',
         ]
+
+    def get_ratings_count(self, obj):
+        return CourseReview.objects.filter(course=obj).count()
+
+    def get_average_rating(self, obj):
+        reviews = CourseReview.objects.filter(course=obj)
+        if reviews.exists():
+            return round(reviews.aggregate(models.Avg("rating"))["rating__avg"], 2)
+        return 4.2
 
     def get_is_enrolled(self, obj):
         request = self.context.get('request', None)
@@ -28,15 +64,12 @@ class CourseSerializer(serializers.ModelSerializer):
             return Enrollment.objects.filter(course=obj, student=request.user).exists()
         return False
 
-    def get_instructor_name(self, obj):
-        if obj.instructor:
-            first = obj.instructor.first_name or ""
-            last = obj.instructor.last_name or ""
-            return f"{first} {last}".strip()
-        return ""
-
     def get_enrollments_count(self, obj):
         return Enrollment.objects.filter(course=obj).count()
+    
+    def get_video_count(self, obj):
+        return Video.objects.filter(course=obj).count()
+
 
 class EnrollmentSerializer(serializers.ModelSerializer):
     student = UserProfileSerializer(read_only=True)
@@ -76,11 +109,12 @@ class VideoSerializer(serializers.ModelSerializer):
 class CourseReviewSerializer(serializers.ModelSerializer):
     rater_first_name = serializers.CharField(source='rater.first_name', read_only=True)
     rater_last_name = serializers.CharField(source='rater.last_name', read_only=True)
+    rater_image = serializers.ImageField(source='rater.image', read_only=True)  # <-- Use ImageField
 
     class Meta:
         model = CourseReview
-        fields = ['id', 'course', 'content', 'rating', 'rater', 'rater_first_name', 'rater_last_name', 'posted_at', 'updated_at']
-        read_only_fields = ['rater', 'posted_at', 'updated_at', 'rater_first_name', 'rater_last_name','course']
+        fields = ['id', 'course', 'content', 'rating', 'rater', 'rater_first_name', 'rater_last_name', 'posted_at', 'updated_at', 'rater_image']
+        read_only_fields = ['rater', 'posted_at', 'updated_at', 'rater_first_name', 'rater_last_name','course', 'rater_image']
 
 class CourseNoteSerializer(serializers.ModelSerializer):
     author_first_name = serializers.CharField(source='author.first_name', read_only=True)

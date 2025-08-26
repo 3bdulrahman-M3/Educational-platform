@@ -135,12 +135,12 @@ def delete_course(request, pk):
 def get_courses(request):
     # Query params
     search = request.query_params.get('search')
-    category_ids = request.query_params.getlist(
-        'category')  # e.g. ?category=1&category=2
-    category_ids = request.query_params.getlist(
-        'category')  # e.g. ?category=1&category=2
-    instructor_name = request.query_params.get('instructor')  
+    category_ids = request.query_params.getlist('category')
+    instructor_name = request.query_params.get('instructor')
     price = request.query_params.get('price')
+    min_price = request.query_params.get('min_price')
+    max_price = request.query_params.get('max_price')
+    order_by = request.query_params.get('order_by')  # price_asc, price_desc, enrollments, recent
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
 
@@ -155,44 +155,53 @@ def get_courses(request):
     if category_ids:
         courses = courses.filter(category__id__in=category_ids)
 
+    # Instructor filter
     if instructor_name:
-        # Split the search term into parts for more flexible matching
         search_terms = instructor_name.strip().split()
-        
-        # Build a more comprehensive search query
         instructor_query = Q()
-        
-        # If multiple terms, search for exact first+last name combination
         if len(search_terms) > 1:
-            # Search for first name + last name combination
             instructor_query |= (
                 Q(instructor__first_name__icontains=search_terms[0]) & 
                 Q(instructor__last_name__icontains=search_terms[-1])
             )
-            # Also search for last name + first name combination
             instructor_query |= (
                 Q(instructor__first_name__icontains=search_terms[-1]) & 
                 Q(instructor__last_name__icontains=search_terms[0])
             )
         else:
-            # Single term - search in both first and last name
             instructor_query |= (
                 Q(instructor__first_name__icontains=instructor_name) |
                 Q(instructor__last_name__icontains=instructor_name)
             )
-        
         courses = courses.filter(instructor_query)
-    # Price filter
+
+    # Price filter (exact)
     if price:
         courses = courses.filter(price=price)
+
+    # Price range filter
+    if min_price:
+        courses = courses.filter(price__gte=min_price)
+    if max_price:
+        courses = courses.filter(price__lte=max_price)
+
+    # Ordering
+    if order_by == 'price_asc':
+        courses = courses.order_by('price')
+    elif order_by == 'price_desc':
+        courses = courses.order_by('-price')
+    elif order_by == 'enrollments':
+        courses = courses.annotate(enrollments_count=models.Count('enrollments')).order_by('-enrollments_count')
+    elif order_by == 'recent':
+        courses = courses.order_by('-created_at')
+
     # Pagination
     total = courses.count()
     start = (page - 1) * limit
     end = start + limit
     courses_page = courses[start:end]
 
-    serializer = CourseSerializer(courses_page, many=True, context={
-                                  'request': request})  # Pass context
+    serializer = CourseSerializer(courses_page, many=True, context={'request': request})
     return Response({
         'results': serializer.data,
         'total': total,
@@ -200,6 +209,8 @@ def get_courses(request):
         'limit': limit,
         'pages': (total + limit - 1) // limit
     })
+
+
 
 
 @api_view(['GET'])
@@ -563,3 +574,20 @@ def get_course_notes(request, course_id):
         'limit': limit,
         'pages': (total + limit - 1) // limit
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def recommend_courses(request, course_id):
+    """
+    Recommend up to 4 courses with the same category as the given course.
+    """
+    try:
+        course = Course.objects.get(pk=course_id)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get courses with the same category, exclude the current course
+    recommended = Course.objects.filter(category=course.category).exclude(id=course.id)[:4]
+    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    return Response(serializer.data)

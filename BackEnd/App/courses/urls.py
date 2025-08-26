@@ -32,4 +32,10 @@ urlpatterns = [
     path('<int:course_id>/notes/', views.create_note, name='create_note'),
     path('notes/<int:note_id>/', views.edit_note, name='edit_note'),
     path('notes/<int:note_id>/delete/', views.delete_note, name='delete_note'),
+
+    path('<int:pk>/videos/', views.list_course_videos, name='list_course_videos'),
+    path('<int:pk>/videos/create/', views.create_course_video, name='create_course_video'),
+    path('videos/<int:video_id>/', views.update_delete_video, name='update_delete_video'),
+    path('<int:course_id>/recommend/', views.recommend_courses, name='recommend-courses'),
+
 ]
