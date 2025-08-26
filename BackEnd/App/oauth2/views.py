@@ -55,10 +55,16 @@ def google_auth_callback(request):
     Accepts authorization code and returns JWT tokens
     """
     try:
+        # Debug: Log incoming request data
+        print(f"DEBUG: OAuth callback request data: {request.data}")
+
         code = request.data.get('code')
         redirect_uri = request.data.get('redirect_uri')
         # Default to student if not provided
         role = request.data.get('role', 'student')
+
+        print(
+            f"DEBUG: code={bool(code)}, redirect_uri={redirect_uri}, role={role}")
 
         if not code or not redirect_uri:
             return Response(
@@ -71,6 +77,19 @@ def google_auth_callback(request):
             return Response(
                 {'error': 'role must be either student or instructor'},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if Google OAuth is configured
+        client_id = os.getenv('GOOGLE_CLIENT_ID')
+        client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+
+        if not client_id or not client_secret:
+            return Response(
+                {
+                    'error': 'Google OAuth not configured on server',
+                    'detail': 'Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET environment variables'
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
         # Initialize Google OAuth2 service
@@ -164,18 +183,12 @@ def google_auth_url(request):
     print(f"DEBUG: redirect_uri = {redirect_uri}")
 
     if not client_id:
-        # For testing purposes, return a mock response
-        return Response(
-            {
-                'error': 'Google Client ID not configured. Please set GOOGLE_CLIENT_ID environment variable.',
-                'debug_info': {
-                    'client_id_set': bool(client_id),
-                    'client_secret_set': bool(client_secret),
-                    'redirect_uri': redirect_uri
-                }
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        # Development mode: return a mock auth URL
+        return Response({
+            'auth_url': f'{redirect_uri}?code=dev_mock_code_123&state=dev_mode',
+            'dev_mode': True,
+            'message': 'Development mode - using mock OAuth flow'
+        }, status=status.HTTP_200_OK)
 
     scope = 'openid email profile'
     auth_url = (
