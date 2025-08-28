@@ -37,5 +37,9 @@ urlpatterns = [
     path('<int:pk>/videos/create/', views.create_course_video, name='create_course_video'),
     path('videos/<int:video_id>/', views.update_delete_video, name='update_delete_video'),
     path('<int:course_id>/recommend/', views.recommend_courses, name='recommend-courses'),
+    path('recommend/', views.recommend_for_user, name='recommend_for_user'),
+
+    path('<int:pk>/create_payment_intent/', views.create_payment_intent, name='create-payment-intent'),
+
 
 ]

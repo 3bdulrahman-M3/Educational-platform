@@ -15,9 +15,15 @@ from django.db.models import Q
 from notifications.views import send_notification
 from django.db.models import Q
 from notifications.views import send_notification
+import stripe
+import os
+from dotenv import load_dotenv
 
 # Create your views here.
 
+load_dotenv()
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+stripe.api_key = STRIPE_SECRET_KEY
 
 def is_enrolled(user, course):
     return Enrollment.objects.filter(student=user, course=course).exists()
@@ -254,7 +260,7 @@ def get_student_enrollments(request, student_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_in_course(request, pk):
-    """Enroll authenticated user in a course (students and instructors allowed)."""
+    """Enroll authenticated user in a course after Stripe payment."""
     try:
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
@@ -263,6 +269,18 @@ def enroll_in_course(request, pk):
         return Response({'error': 'Only students or instructors can enroll'}, status=status.HTTP_403_FORBIDDEN)
     if Enrollment.objects.filter(student=request.user, course=course).exists():
         return Response({'error': 'Already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
+
+    intent_id = request.data.get('intent_id')
+    if not intent_id:
+        return Response({'error': 'Payment intent ID required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify payment intent status with Stripe
+    try:
+        intent = stripe.PaymentIntent.retrieve(intent_id)
+        if intent.status != 'succeeded':
+            return Response({'error': 'Payment not completed'}, status=status.HTTP_402_PAYMENT_REQUIRED)
+    except Exception as e:
+        return Response({'error': f'Stripe error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
     enrollment = Enrollment.objects.create(student=request.user, course=course)
 
@@ -275,10 +293,19 @@ def enroll_in_course(request, pk):
             title=f"New Student Enrollment",
             message=f"{request.user.first_name} {request.user.last_name} enrolled in '{course.title}'"
         )
+        # Notify user about successful payment and enrollment
+        send_notification(
+            sender_id=course.instructor.id,
+            receiver_id=request.user.id,
+            notification_type='payment_success',
+            title="Payment Complete",
+            message=f"You have successfully paid and enrolled in '{course.title}'."
+        )
     except Exception as e:
         print(f"Notification error: {e}")
 
-    return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
+    return Response({'message': 'Payment complete and enrolled successfully'}, status=status.HTTP_201_CREATED)
+
 
 
 @api_view(['POST'])
@@ -591,3 +618,55 @@ def recommend_courses(request, course_id):
     recommended = Course.objects.filter(category=course.category).exclude(id=course.id)[:4]
     serializer = CourseSerializer(recommended, many=True, context={'request': request})
     return Response(serializer.data)
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recommend_for_user(request):
+    """
+    Recommend up to 4 courses from categories in user's interests.
+    If not enough, fill with most enrolled courses.
+    """
+    user = request.user
+    interest_ids = list(user.interests.values_list('id', flat=True))
+    recommended = Course.objects.none()
+
+    if interest_ids:
+        recommended = Course.objects.filter(category__id__in=interest_ids).distinct()[:4]
+
+    count = recommended.count()
+    if count < 4:
+        # Fill with most enrolled courses not already recommended
+        exclude_ids = recommended.values_list('id', flat=True)
+        fill_courses = Course.objects.exclude(id__in=exclude_ids)\
+            .annotate(enrollments_count=models.Count('enrollments'))\
+            .order_by('-enrollments_count')[:4 - count]
+        # Combine QuerySets
+        recommended = list(recommended) + list(fill_courses)
+
+    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_payment_intent(request, pk):
+    """
+    Create a Stripe PaymentIntent for a course.
+    """
+    try:
+        course = Course.objects.get(pk=pk)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    amount = int(float(course.price) * 100)  # Stripe expects amount in cents
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency='usd',
+            metadata={'course_id': course.id, 'user_id': request.user.id}
+        )
+        return Response({'client_secret': intent.client_secret, 'intent_id': intent.id})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
