@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'liveSessions',
     'notifications',
     'oauth2',
+    'stripe'
 ]
 
 MIDDLEWARE = [
