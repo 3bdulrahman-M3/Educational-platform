@@ -48,9 +48,15 @@ class UserLoginSerializer(serializers.Serializer):
 
 class UserProfileSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(required=False, allow_null=True)  # <-- Writable!
+    interests = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=User.interests.through.objects.all(),
+        required=False
+    )
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image', 'bio')
+        fields = ('id', 'email', 'username', 'first_name', 'last_name', 'role', 'date_joined','image', 'bio', 'interests')
         read_only_fields = ('id', 'date_joined') 
 
     def get_image(self, obj):
