@@ -14,7 +14,7 @@ class Course(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     image = CloudinaryField('image', blank=True, null=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, db_column='Price')
+    price = models.DecimalField(max_digits=10, decimal_places=3, default=0.00, db_column='Price')
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='courses')
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -23,6 +23,23 @@ class Course(models.Model):
         null=True,
         blank=True
     )  # Added creator field
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    duration = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0.00,
+        null=True,
+        blank=True,
+        help_text="Duration in hours (e.g., 1.50 = 1 hour 30 mins)"
+    )
+    level = models.CharField(max_length=50, blank=True, null=True, default='Beginner')
+    language = models.CharField(max_length=50, blank=True, null=True, default='English')
+    learning_objectives = models.JSONField(default=list, blank=True)
+    requirements = models.JSONField(default=list, blank=True)
+    target_audience = models.JSONField(default=list, blank=True)
+
+
     def __str__(self):
         return self.title
 
@@ -55,6 +72,7 @@ class Video(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.course.title})"
+    
 
 class CourseReview(models.Model):
     course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='reviews')

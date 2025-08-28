@@ -10,11 +10,22 @@ from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
 from authentication.models import User
 from django.db import models
-from django.db.models import Q, Count
-from decimal import Decimal, InvalidOperation
+from django.db.models import Q
 from notifications.views import send_notification
+from django.db.models import Q
+from notifications.views import send_notification
+import stripe
+import os
+from dotenv import load_dotenv
 
 # Create your views here.
+
+load_dotenv()
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+stripe.api_key = STRIPE_SECRET_KEY
+
+def is_enrolled(user, course):
+    return Enrollment.objects.filter(student=user, course=course).exists()
 
 
 @api_view(['GET'])
@@ -97,13 +108,12 @@ def delete_course(request, pk):
 def get_courses(request):
     # Query params
     search = request.query_params.get('search')
-    category_ids = request.query_params.getlist(
-        'category')  # e.g. ?category=1&category=2
-    instructor_name = request.query_params.get('instructor')  
+    category_ids = request.query_params.getlist('category')
+    instructor_name = request.query_params.get('instructor')
     price = request.query_params.get('price')
-    price_min = request.query_params.get('price_min') or request.query_params.get('min_price')
-    price_max = request.query_params.get('price_max') or request.query_params.get('max_price')
-    price_range = request.query_params.get('price_range')  # accepts formats like "10-50" or "10,50"
+    min_price = request.query_params.get('min_price')
+    max_price = request.query_params.get('max_price')
+    order_by = request.query_params.get('order_by')  # price_asc, price_desc, enrollments, recent
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
     sort = request.query_params.get('sort')  # e.g., 'top_sellers'
@@ -122,92 +132,45 @@ def get_courses(request):
     if category_ids:
         courses = courses.filter(category__id__in=category_ids)
 
+    # Instructor filter
     if instructor_name:
-        # Split the search term into parts for more flexible matching
         search_terms = instructor_name.strip().split()
-        
-        # Build a more comprehensive search query
         instructor_query = Q()
-        
-        # If multiple terms, search for exact first+last name combination
         if len(search_terms) > 1:
-            # Search for first name + last name combination
             instructor_query |= (
                 Q(instructor__first_name__icontains=search_terms[0]) & 
                 Q(instructor__last_name__icontains=search_terms[-1])
             )
-            # Also search for last name + first name combination
             instructor_query |= (
                 Q(instructor__first_name__icontains=search_terms[-1]) & 
                 Q(instructor__last_name__icontains=search_terms[0])
             )
         else:
-            # Single term - search in both first and last name
             instructor_query |= (
                 Q(instructor__first_name__icontains=instructor_name) |
                 Q(instructor__last_name__icontains=instructor_name)
             )
-        
         courses = courses.filter(instructor_query)
-    # Price filter
-    # Backwards compatible exact price match
-    if price and not (price_min or price_max or price_range):
-        try:
-            courses = courses.filter(price=Decimal(price))
-        except (InvalidOperation, TypeError):
-            pass
 
-    # Range-based price filtering
-    min_value = None
-    max_value = None
+    # Price filter (exact)
+    if price:
+        courses = courses.filter(price=price)
 
-    # Parse price_range if provided (e.g., "10-50" or "10,50")
-    if price_range and not (price_min or price_max):
-        separator = '-' if '-' in price_range else ',' if ',' in price_range else None
-        if separator:
-            parts = [p.strip() for p in price_range.split(separator, 1)]
-            if parts and parts[0] != '':
-                try:
-                    min_value = Decimal(parts[0])
-                except InvalidOperation:
-                    min_value = None
-            if len(parts) > 1 and parts[1] != '':
-                try:
-                    max_value = Decimal(parts[1])
-                except InvalidOperation:
-                    max_value = None
+    # Price range filter
+    if min_price:
+        courses = courses.filter(price__gte=min_price)
+    if max_price:
+        courses = courses.filter(price__lte=max_price)
 
-    # Parse explicit min/max if provided
-    if price_min:
-        try:
-            min_value = Decimal(price_min)
-        except InvalidOperation:
-            min_value = None
-    if price_max:
-        try:
-            max_value = Decimal(price_max)
-        except InvalidOperation:
-            max_value = None
-
-    if min_value is not None:
-        courses = courses.filter(price__gte=min_value)
-    if max_value is not None:
-        courses = courses.filter(price__lte=max_value)
-    # Top sellers filter (enrollments > 0 by default, or >= min_enrollments)
-    if top_sellers in ('1', 'true', 'True', 'yes', 'on') or (min_enrollments_param is not None):
-        try:
-            min_enrollments = int(min_enrollments_param) if min_enrollments_param is not None else 1
-        except (TypeError, ValueError):
-            min_enrollments = 1
-        courses = courses.annotate(num_enrollments=Count('enrollments')).filter(num_enrollments__gte=min_enrollments)
-
-    # Sorting
-    if sort == 'top_sellers':
-        # Order by number of enrollments descending
-        if 'num_enrollments' in [a.name for a in courses.query.annotations.values()]:
-            courses = courses.order_by('-num_enrollments', '-id')
-        else:
-            courses = courses.annotate(num_enrollments=Count('enrollments')).order_by('-num_enrollments', '-id')
+    # Ordering
+    if order_by == 'price_asc':
+        courses = courses.order_by('price')
+    elif order_by == 'price_desc':
+        courses = courses.order_by('-price')
+    elif order_by == 'enrollments':
+        courses = courses.annotate(enrollments_count=models.Count('enrollments')).order_by('-enrollments_count')
+    elif order_by == 'recent':
+        courses = courses.order_by('-created_at')
 
     # Pagination
     total = courses.count()
@@ -215,8 +178,7 @@ def get_courses(request):
     end = start + limit
     courses_page = courses[start:end]
 
-    serializer = CourseSerializer(courses_page, many=True, context={
-                                  'request': request})  # Pass context
+    serializer = CourseSerializer(courses_page, many=True, context={'request': request})
     return Response({
         'results': serializer.data,
         'total': total,
@@ -224,6 +186,8 @@ def get_courses(request):
         'limit': limit,
         'pages': (total + limit - 1) // limit
     })
+
+
 
 
 @api_view(['GET'])
@@ -267,7 +231,7 @@ def get_student_enrollments(request, student_id):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def enroll_in_course(request, pk):
-    """Enroll authenticated user in a course (students and instructors allowed)."""
+    """Enroll authenticated user in a course after Stripe payment."""
     try:
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
@@ -276,8 +240,43 @@ def enroll_in_course(request, pk):
         return Response({'error': 'Only students or instructors can enroll'}, status=status.HTTP_403_FORBIDDEN)
     if Enrollment.objects.filter(student=request.user, course=course).exists():
         return Response({'error': 'Already enrolled'}, status=status.HTTP_400_BAD_REQUEST)
-    Enrollment.objects.create(student=request.user, course=course)
-    return Response({'message': 'Enrolled successfully'}, status=status.HTTP_201_CREATED)
+
+    intent_id = request.data.get('intent_id')
+    if not intent_id:
+        return Response({'error': 'Payment intent ID required'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Verify payment intent status with Stripe
+    try:
+        intent = stripe.PaymentIntent.retrieve(intent_id)
+        if intent.status != 'succeeded':
+            return Response({'error': 'Payment not completed'}, status=status.HTTP_402_PAYMENT_REQUIRED)
+    except Exception as e:
+        return Response({'error': f'Stripe error: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    enrollment = Enrollment.objects.create(student=request.user, course=course)
+
+    # 🔔 Send notification to instructor about new enrollment
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=course.instructor.id,
+            notification_type='course_enrollment',
+            title=f"New Student Enrollment",
+            message=f"{request.user.first_name} {request.user.last_name} enrolled in '{course.title}'"
+        )
+        # Notify user about successful payment and enrollment
+        send_notification(
+            sender_id=course.instructor.id,
+            receiver_id=request.user.id,
+            notification_type='payment_success',
+            title="Payment Complete",
+            message=f"You have successfully paid and enrolled in '{course.title}'."
+        )
+    except Exception as e:
+        print(f"Notification error: {e}")
+
+    return Response({'message': 'Payment complete and enrolled successfully'}, status=status.HTTP_201_CREATED)
+
 
 
 @api_view(['POST'])
@@ -439,3 +438,203 @@ def notify_students(request, pk):
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({'error': f'Failed to send notifications: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# --- REVIEWS ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_review(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+    if not is_enrolled(request.user, course):
+        return Response({'error': 'You must be enrolled to review'}, status=403)
+    if CourseReview.objects.filter(course=course, rater=request.user).exists():
+        return Response({'error': 'You have already reviewed this course'}, status=400)
+    serializer = CourseReviewSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(course=course, rater=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_review(request, review_id):
+    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    if not review:
+        return Response({'error': 'Review not found or not yours'}, status=404)
+    serializer = CourseReviewSerializer(review, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_review(request, review_id):
+    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    if not review:
+        return Response({'error': 'Review not found or not yours'}, status=404)
+    review.delete()
+    return Response({'message': 'Review deleted'}, status=204)
+
+# --- NOTES ---
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_note(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+    if not is_enrolled(request.user, course):
+        return Response({'error': 'You must be enrolled to add notes'}, status=403)
+    serializer = CourseNoteSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save(course=course, author=request.user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_note(request, note_id):
+    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
+    if not note:
+        return Response({'error': 'Note not found or not yours'}, status=404)
+    serializer = CourseNoteSerializer(note, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_note(request, note_id):
+    note = CourseNote.objects.filter(pk=note_id, author=request.user).first()
+    if not note:
+        return Response({'error': 'Note not found or not yours'}, status=404)
+    note.delete()
+    return Response({'message': 'Note deleted'}, status=204)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_course_reviews(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+
+    # Pagination params
+    page = int(request.query_params.get('page', 1))
+    limit = int(request.query_params.get('limit', 5))
+
+    reviews = CourseReview.objects.filter(course=course)
+    total = reviews.count()
+
+    start = (page - 1) * limit
+    end = start + limit
+    reviews_page = reviews[start:end]
+
+    serializer = CourseReviewSerializer(reviews_page, many=True)
+    return Response({
+        'results': serializer.data,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'pages': (total + limit - 1) // limit
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_course_notes(request, course_id):
+    course = Course.objects.filter(pk=course_id).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+
+    # Pagination params
+    page = int(request.query_params.get('page', 1))
+    limit = int(request.query_params.get('limit', 5))
+
+    notes = CourseNote.objects.filter(course=course)
+    total = notes.count()
+
+    start = (page - 1) * limit
+    end = start + limit
+    notes_page = notes[start:end]
+
+    serializer = CourseNoteSerializer(notes_page, many=True)
+    return Response({
+        'results': serializer.data,
+        'total': total,
+        'page': page,
+        'limit': limit,
+        'pages': (total + limit - 1) // limit
+    })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def recommend_courses(request, course_id):
+    """
+    Recommend up to 4 courses with the same category as the given course.
+    """
+    try:
+        course = Course.objects.get(pk=course_id)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Get courses with the same category, exclude the current course
+    recommended = Course.objects.filter(category=course.category).exclude(id=course.id)[:4]
+    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def recommend_for_user(request):
+    """
+    Recommend up to 4 courses from categories in user's interests.
+    If not enough, fill with most enrolled courses.
+    """
+    user = request.user
+    interest_ids = list(user.interests.values_list('id', flat=True))
+    recommended = Course.objects.none()
+
+    if interest_ids:
+        recommended = Course.objects.filter(category__id__in=interest_ids).distinct()[:4]
+
+    count = recommended.count()
+    if count < 4:
+        # Fill with most enrolled courses not already recommended
+        exclude_ids = recommended.values_list('id', flat=True)
+        fill_courses = Course.objects.exclude(id__in=exclude_ids)\
+            .annotate(enrollments_count=models.Count('enrollments'))\
+            .order_by('-enrollments_count')[:4 - count]
+        # Combine QuerySets
+        recommended = list(recommended) + list(fill_courses)
+
+    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_payment_intent(request, pk):
+    """
+    Create a Stripe PaymentIntent for a course.
+    """
+    try:
+        course = Course.objects.get(pk=pk)
+    except Course.DoesNotExist:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    amount = int(float(course.price) * 100)  # Stripe expects amount in cents
+    try:
+        intent = stripe.PaymentIntent.create(
+            amount=amount,
+            currency='usd',
+            metadata={'course_id': course.id, 'user_id': request.user.id}
+        )
+        return Response({'client_secret': intent.client_secret, 'intent_id': intent.id})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

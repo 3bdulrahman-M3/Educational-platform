@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from cloudinary.models import CloudinaryField
+from courses.models import Category  # Add this import at the top
 
 
 class User(AbstractUser):
@@ -9,18 +10,22 @@ class User(AbstractUser):
         ('student', 'Student'),
     )
     
+    
+    
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+    bio = models.TextField(blank=True, default='This user prefers to keep an air of mystery about them.')
     image = CloudinaryField(
         'image',
         blank=True,
         null=True,
-        default='https://img.freepik.com/free-photo/learning-education-ideas-insight-intelligence-study-concept_53876-120116.jpg?semt=ais_hybrid&w=740&q=80'
+        default='https://res.cloudinary.com/ddtp8tqvv/image/upload/v1756197579/teenage-girl-with-headphones-laptop-online-school_lxptu5.jpg'
     )
+    interests = models.ManyToManyField(Category, related_name='interested_users', blank=True)  # Added field
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'role']
