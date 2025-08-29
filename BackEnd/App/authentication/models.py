@@ -9,30 +9,31 @@ class User(AbstractUser):
         ('instructor', 'Instructor'),
         ('student', 'Student'),
     )
-    
-    
-    
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='student')
+
+    role = models.CharField(
+        max_length=10, choices=ROLE_CHOICES, default='student')
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
-    bio = models.TextField(blank=True, default='This user prefers to keep an air of mystery about them.')
+    bio = models.TextField(
+        blank=True, default='This user prefers to keep an air of mystery about them.')
     image = CloudinaryField(
         'image',
         blank=True,
         null=True,
         default='https://res.cloudinary.com/ddtp8tqvv/image/upload/v1756197579/teenage-girl-with-headphones-laptop-online-school_lxptu5.jpg'
     )
-    interests = models.ManyToManyField(Category, related_name='interested_users', blank=True)  # Added field
+    interests = models.ManyToManyField(
+        Category, related_name='interested_users', blank=True)  # Added field
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'role']
 
     def __str__(self):
         return self.email
-    
+
     class Meta:
         db_table = 'auth_user'
 
@@ -54,3 +55,22 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = 'user_profile'
+
+
+class PasswordResetToken(models.Model):
+    """Single-use password reset token with expiration."""
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"PasswordResetToken(user={self.user.email}, used={self.is_used})"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['expires_at']),
+        ]

@@ -228,3 +228,19 @@ REDIS_PORT = int(os.environ.get('REDIS_PORT', 15762))
 REDIS_USERNAME = os.environ.get('REDIS_USERNAME', 'default')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+
+# Email settings
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 0)
+                 ) if os.environ.get('EMAIL_PORT') else None
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get(
+    'DEFAULT_FROM_EMAIL', 'no-reply@example.com')
+
+# Frontend base URL for links in emails
+FRONTEND_BASE_URL = os.environ.get(
+    'FRONTEND_BASE_URL', 'http://localhost:5173')
