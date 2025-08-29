@@ -229,6 +229,7 @@ REDIS_USERNAME = os.environ.get('REDIS_USERNAME', 'default')
 REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
 REDIS_DB = int(os.environ.get('REDIS_DB', 0))
 
+
 # Email settings
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
