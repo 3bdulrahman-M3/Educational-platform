@@ -11,12 +11,13 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
 )
-from .models import User
+from .models import User, InstructorRequest
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.http import urlencode
 from django.utils import timezone
+from notifications.views import send_notification
 
 
 @api_view(['POST'])
@@ -148,3 +149,113 @@ def password_reset_confirm(request):
             pass
         return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def request_instructor(request):
+    """User requests to become an instructor"""
+    if request.user.role == 'instructor':
+        return Response({'message': 'Already an instructor'}, status=200)
+    existing = getattr(request.user, 'instructor_request', None)
+    if existing and existing.status == 'pending':
+        return Response({'message': 'Request already pending'}, status=200)
+    motivation = request.data.get('motivation', '')
+    ir, _ = InstructorRequest.objects.update_or_create(
+        user=request.user,
+        defaults={'motivation': motivation, 'status': 'pending',
+                  'reviewed_at': None, 'reviewed_by': None}
+    )
+    # notify admins
+    try:
+        admin_ids = list(User.objects.filter(
+            role='admin').values_list('id', flat=True))
+        for admin_id in admin_ids:
+            send_notification(
+                sender_id=request.user.id,
+                receiver_id=admin_id,
+                notification_type='announcement',
+                title='Instructor Request',
+                message=f"{request.user.get_full_name() or request.user.email} requested to become an instructor."
+            )
+    except Exception:
+        pass
+    return Response({'message': 'Request submitted'}, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_instructor_requests(request):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    pending = InstructorRequest.objects.select_related(
+        'user').order_by('-created_at')
+    data = [
+        {
+            'id': r.id,
+            'user_id': r.user_id,
+            'email': r.user.email,
+            'name': r.user.get_full_name(),
+            'motivation': r.motivation,
+            'status': r.status,
+            'created_at': r.created_at,
+        }
+        for r in pending
+    ]
+    return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def approve_instructor(request, request_id):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    req = InstructorRequest.objects.filter(
+        id=request_id).select_related('user').first()
+    if not req:
+        return Response({'error': 'Request not found'}, status=404)
+    req.status = 'approved'
+    req.reviewed_at = timezone.now()
+    req.reviewed_by = request.user
+    req.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    # promote user
+    req.user.role = 'instructor'
+    req.user.save(update_fields=['role'])
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=req.user_id,
+            notification_type='announcement',
+            title='Instructor Approved',
+            message='You are now an instructor.'
+        )
+    except Exception:
+        pass
+    return Response({'message': 'Instructor approved'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reject_instructor(request, request_id):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    req = InstructorRequest.objects.filter(
+        id=request_id).select_related('user').first()
+    if not req:
+        return Response({'error': 'Request not found'}, status=404)
+    reason = request.data.get('reason', '')
+    req.status = 'rejected'
+    req.reviewed_at = timezone.now()
+    req.reviewed_by = request.user
+    req.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=req.user_id,
+            notification_type='announcement',
+            title='Instructor Request Rejected',
+            message=f'Reason: {reason}'
+        )
+    except Exception:
+        pass
+    return Response({'message': 'Instructor rejected'})

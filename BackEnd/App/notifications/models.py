@@ -11,6 +11,7 @@ class Notification(models.Model):
         ('announcement', 'Announcement'),
         ('course_update', 'Course Update'),
         ('assignment_due', 'Assignment Due'),
+        ('analytics_update', 'Analytics Update'),
     )
 
     sender = models.ForeignKey(
@@ -34,7 +35,8 @@ class Notification(models.Model):
         null=True,
         blank=True
     )
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    notification_type = models.CharField(
+        max_length=20, choices=NOTIFICATION_TYPES)
     title = models.CharField(max_length=255, blank=True)
     message = models.TextField()
     data = models.JSONField(default=dict, blank=True)  # For additional data

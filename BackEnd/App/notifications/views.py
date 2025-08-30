@@ -6,6 +6,10 @@ from .models import Notification
 from .serializers import NotificationSerializer
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from django.utils import timezone
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from authentication.models import User
 
 
 class NotificationViewSet(viewsets.ModelViewSet):
@@ -84,3 +88,31 @@ def send_notification(sender_id, receiver_id, notification_type, title, message,
     )
 
     return notification
+
+
+# --- Online users tracking (simplified) ---
+ONLINE_USERS_KEY = 'online_users_last_seen'
+
+
+def track_user_activity(user_id):
+    """Track last seen for a user and broadcast analytics update"""
+    channel_layer = get_channel_layer()
+    now_iso = timezone.now().isoformat()
+    async_to_sync(channel_layer.group_send)(
+        f"user_{user_id}",
+        {"type": "notify", "data": {"type": "heartbeat", "at": now_iso}}
+    )
+    # Broadcast analytics update to admins (placeholder event)
+    admin_ids = list(User.objects.filter(
+        role='admin').values_list('id', flat=True))
+    for admin_id in admin_ids:
+        async_to_sync(channel_layer.group_send)(
+            f"user_{admin_id}",
+            {
+                "type": "notify",
+                "data": {
+                    "type": "analytics_update",
+                    "online_delta": 1,
+                },
+            },
+        )

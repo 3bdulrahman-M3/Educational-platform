@@ -13,4 +13,12 @@ urlpatterns = [
          name='password_reset_request'),
     path('password-reset/confirm/', views.password_reset_confirm,
          name='password_reset_confirm'),
+    path('instructor/request/', views.request_instructor,
+         name='request_instructor'),
+    path('instructor/requests/', views.list_instructor_requests,
+         name='list_instructor_requests'),
+    path('instructor/requests/<int:request_id>/approve/',
+         views.approve_instructor, name='approve_instructor'),
+    path('instructor/requests/<int:request_id>/reject/',
+         views.reject_instructor, name='reject_instructor'),
 ]

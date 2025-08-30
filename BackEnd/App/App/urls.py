@@ -16,6 +16,12 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from django.db.models import Count
+from authentication.models import User, InstructorRequest
+from courses.models import Course, Enrollment
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -25,4 +31,5 @@ urlpatterns = [
     path('api/courses/', include('courses.urls')),
     path('api/live/', include('liveSessions.urls')),
     path('api/', include('notifications.urls')),
+    path('api/admin/analytics/', include('App.analytics_urls')),
 ]

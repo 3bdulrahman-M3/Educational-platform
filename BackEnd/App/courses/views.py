@@ -24,6 +24,7 @@ load_dotenv()
 STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
 stripe.api_key = STRIPE_SECRET_KEY
 
+
 def is_enrolled(user, course):
     return Enrollment.objects.filter(student=user, course=course).exists()
 
@@ -42,6 +43,15 @@ def get_instructors(request):
     from .serializers import InstructorSerializer
     serializer = InstructorSerializer(instructors, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_pending_courses(request):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    pending = Course.objects.filter(status='pending')
+    return Response(CourseSerializer(pending, many=True, context={'request': request}).data)
 
 
 @api_view(['GET'])
@@ -68,7 +78,21 @@ def create_course(request):
         return Response({'error': 'Only instructors can create courses.'}, status=status.HTTP_403_FORBIDDEN)
     serializer = CourseSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(instructor=request.user)
+        serializer.save(instructor=request.user, status='pending')
+        # notify admin(s) about pending course
+        try:
+            admin_ids = list(User.objects.filter(
+                role='admin').values_list('id', flat=True))
+            for admin_id in admin_ids:
+                send_notification(
+                    sender_id=request.user.id,
+                    receiver_id=admin_id,
+                    notification_type='course_update',
+                    title='Course Approval Needed',
+                    message=f"'{request.user.get_full_name() or request.user.email}' submitted course '{serializer.data.get('title')}' for approval"
+                )
+        except Exception:
+            pass
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -83,11 +107,77 @@ def update_course(request, pk):
         course = Course.objects.get(pk=pk)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    # reset to pending on updates
     serializer = CourseSerializer(course, data=request.data, partial=True)
     if serializer.is_valid():
-        serializer.save()
+        updated = serializer.save(status='pending')
+        # notify admins about re-approval
+        try:
+            admin_ids = list(User.objects.filter(
+                role='admin').values_list('id', flat=True))
+            for admin_id in admin_ids:
+                send_notification(
+                    sender_id=request.user.id,
+                    receiver_id=admin_id,
+                    notification_type='course_update',
+                    title='Course Requires Re-Approval',
+                    message=f"'{request.user.get_full_name() or request.user.email}' updated course '{updated.title}' and it requires approval again"
+                )
+        except Exception:
+            pass
         return Response(serializer.data)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_approve_course(request, pk):
+    if request.user.role != 'admin':
+        return Response({'error': 'Only admin can approve courses'}, status=status.HTTP_403_FORBIDDEN)
+    course = Course.objects.filter(pk=pk).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    course.status = 'approved'
+    course.rejection_reason = ''
+    course.save(update_fields=['status', 'rejection_reason'])
+    try:
+        if course.instructor_id:
+            send_notification(
+                sender_id=request.user.id,
+                receiver_id=course.instructor_id,
+                notification_type='course_update',
+                title='Course Approved',
+                message=f"Your course '{course.title}' is now live."
+            )
+    except Exception:
+        pass
+    return Response({'message': 'Course approved'}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_reject_course(request, pk):
+    if request.user.role != 'admin':
+        return Response({'error': 'Only admin can reject courses'}, status=status.HTTP_403_FORBIDDEN)
+    course = Course.objects.filter(pk=pk).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
+    reason = request.data.get('reason', '')
+    course.status = 'rejected'
+    course.rejection_reason = reason[:255]
+    course.save(update_fields=['status', 'rejection_reason'])
+    try:
+        if course.instructor_id:
+            send_notification(
+                sender_id=request.user.id,
+                receiver_id=course.instructor_id,
+                notification_type='course_update',
+                title='Course Rejected',
+                message=f"Your course '{course.title}' was rejected. Reason: {course.rejection_reason}"
+            )
+    except Exception:
+        pass
+    return Response({'message': 'Course rejected', 'reason': course.rejection_reason}, status=200)
 
 
 @api_view(['DELETE'])
@@ -113,7 +203,8 @@ def get_courses(request):
     price = request.query_params.get('price')
     min_price = request.query_params.get('min_price')
     max_price = request.query_params.get('max_price')
-    order_by = request.query_params.get('order_by')  # price_asc, price_desc, enrollments, recent
+    # price_asc, price_desc, enrollments, recent
+    order_by = request.query_params.get('order_by')
     page = int(request.query_params.get('page', 1))
     limit = int(request.query_params.get('limit', 5))
     sort = request.query_params.get('sort')  # e.g., 'top_sellers'
@@ -121,8 +212,8 @@ def get_courses(request):
     top_sellers = request.query_params.get('top_sellers')
     min_enrollments_param = request.query_params.get('min_enrollments')
 
-    # Base queryset
-    courses = Course.objects.all()
+    # Base queryset: only approved courses visible to public
+    courses = Course.objects.filter(status='approved')
 
     # Search filter
     if search:
@@ -138,11 +229,11 @@ def get_courses(request):
         instructor_query = Q()
         if len(search_terms) > 1:
             instructor_query |= (
-                Q(instructor__first_name__icontains=search_terms[0]) & 
+                Q(instructor__first_name__icontains=search_terms[0]) &
                 Q(instructor__last_name__icontains=search_terms[-1])
             )
             instructor_query |= (
-                Q(instructor__first_name__icontains=search_terms[-1]) & 
+                Q(instructor__first_name__icontains=search_terms[-1]) &
                 Q(instructor__last_name__icontains=search_terms[0])
             )
         else:
@@ -168,7 +259,8 @@ def get_courses(request):
     elif order_by == 'price_desc':
         courses = courses.order_by('-price')
     elif order_by == 'enrollments':
-        courses = courses.annotate(enrollments_count=models.Count('enrollments')).order_by('-enrollments_count')
+        courses = courses.annotate(enrollments_count=models.Count(
+            'enrollments')).order_by('-enrollments_count')
     elif order_by == 'recent':
         courses = courses.order_by('-created_at')
 
@@ -178,7 +270,8 @@ def get_courses(request):
     end = start + limit
     courses_page = courses[start:end]
 
-    serializer = CourseSerializer(courses_page, many=True, context={'request': request})
+    serializer = CourseSerializer(
+        courses_page, many=True, context={'request': request})
     return Response({
         'results': serializer.data,
         'total': total,
@@ -186,8 +279,6 @@ def get_courses(request):
         'limit': limit,
         'pages': (total + limit - 1) // limit
     })
-
-
 
 
 @api_view(['GET'])
@@ -277,6 +368,33 @@ def enroll_in_course(request, pk):
 
     return Response({'message': 'Payment complete and enrolled successfully'}, status=status.HTTP_201_CREATED)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_course_completed(request, pk):
+    course = Course.objects.filter(pk=pk).first()
+    if not course:
+        return Response({'error': 'Course not found'}, status=404)
+    enrollment = Enrollment.objects.filter(
+        student=request.user, course=course).first()
+    if not enrollment:
+        return Response({'error': 'Not enrolled'}, status=403)
+    if enrollment.completed_at:
+        return Response({'message': 'Already marked completed'})
+    from django.utils import timezone
+    enrollment.completed_at = timezone.now()
+    enrollment.save(update_fields=['completed_at'])
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=course.instructor_id,
+            notification_type='course_update',
+            title='Course Completed',
+            message=f"{request.user.get_full_name() or request.user.email} completed '{course.title}'."
+        )
+    except Exception:
+        pass
+    return Response({'message': 'Marked completed'})
 
 
 @api_view(['POST'])
@@ -441,6 +559,7 @@ def notify_students(request, pk):
 
 # --- REVIEWS ---
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_review(request, course_id):
@@ -457,28 +576,34 @@ def create_review(request, course_id):
         return Response(serializer.data, status=201)
     return Response(serializer.errors, status=400)
 
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def edit_review(request, review_id):
-    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    review = CourseReview.objects.filter(
+        pk=review_id, rater=request.user).first()
     if not review:
         return Response({'error': 'Review not found or not yours'}, status=404)
-    serializer = CourseReviewSerializer(review, data=request.data, partial=True)
+    serializer = CourseReviewSerializer(
+        review, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_review(request, review_id):
-    review = CourseReview.objects.filter(pk=review_id, rater=request.user).first()
+    review = CourseReview.objects.filter(
+        pk=review_id, rater=request.user).first()
     if not review:
         return Response({'error': 'Review not found or not yours'}, status=404)
     review.delete()
     return Response({'message': 'Review deleted'}, status=204)
 
 # --- NOTES ---
+
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -494,6 +619,7 @@ def create_note(request, course_id):
         return Response(serializer.data, status=201)
     return Response(serializer.errors, status=400)
 
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def edit_note(request, note_id):
@@ -506,6 +632,7 @@ def edit_note(request, note_id):
         return Response(serializer.data)
     return Response(serializer.errors, status=400)
 
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_note(request, note_id):
@@ -514,6 +641,7 @@ def delete_note(request, note_id):
         return Response({'error': 'Note not found or not yours'}, status=404)
     note.delete()
     return Response({'message': 'Note deleted'}, status=204)
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -581,13 +709,13 @@ def recommend_courses(request, course_id):
         course = Course.objects.get(pk=course_id)
     except Course.DoesNotExist:
         return Response({'error': 'Course not found'}, status=status.HTTP_404_NOT_FOUND)
-    
+
     # Get courses with the same category, exclude the current course
-    recommended = Course.objects.filter(category=course.category).exclude(id=course.id)[:4]
-    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    recommended = Course.objects.filter(
+        category=course.category).exclude(id=course.id)[:4]
+    serializer = CourseSerializer(
+        recommended, many=True, context={'request': request})
     return Response(serializer.data)
-
-
 
 
 @api_view(['GET'])
@@ -602,7 +730,8 @@ def recommend_for_user(request):
     recommended = Course.objects.none()
 
     if interest_ids:
-        recommended = Course.objects.filter(category__id__in=interest_ids).distinct()[:4]
+        recommended = Course.objects.filter(
+            category__id__in=interest_ids).distinct()[:4]
 
     count = recommended.count()
     if count < 4:
@@ -614,7 +743,8 @@ def recommend_for_user(request):
         # Combine QuerySets
         recommended = list(recommended) + list(fill_courses)
 
-    serializer = CourseSerializer(recommended, many=True, context={'request': request})
+    serializer = CourseSerializer(
+        recommended, many=True, context={'request': request})
     return Response(serializer.data)
 
 

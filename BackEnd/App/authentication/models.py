@@ -6,6 +6,7 @@ from courses.models import Category  # Add this import at the top
 
 class User(AbstractUser):
     ROLE_CHOICES = (
+        ('admin', 'Admin'),
         ('instructor', 'Instructor'),
         ('student', 'Student'),
     )
@@ -36,6 +37,25 @@ class User(AbstractUser):
 
     class Meta:
         db_table = 'auth_user'
+
+
+class InstructorRequest(models.Model):
+    user = models.OneToOneField(
+        'User', on_delete=models.CASCADE, related_name='instructor_request')
+    motivation = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=(
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ), default='pending')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_instructor_requests')
+
+    class Meta:
+        db_table = 'instructor_requests'
+        ordering = ['-created_at']
 
 
 class UserProfile(models.Model):

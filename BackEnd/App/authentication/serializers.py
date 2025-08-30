@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, PasswordResetToken
+from .models import User, PasswordResetToken, InstructorRequest
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.password_validation import validate_password
