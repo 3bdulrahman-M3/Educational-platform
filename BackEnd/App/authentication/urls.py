@@ -22,4 +22,5 @@ urlpatterns = [
     path('instructor/requests/<int:request_id>/reject/',
          views.reject_instructor, name='reject_instructor'),
     path('users/', views.list_users, name='list_users'),
+    path('users/<int:user_id>/delete/', views.delete_user, name='delete_user'),
 ]

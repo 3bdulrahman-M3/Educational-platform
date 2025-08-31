@@ -343,3 +343,22 @@ def list_users(request):
             item['status'] = 'Pending' if uid in pending_ids else 'Approved'
 
     return Response(data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_user(request, user_id: int):
+    """Admin-only: permanently delete a user by id."""
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+
+    if request.user.id == user_id:
+        return Response({'error': 'You cannot delete your own account.'}, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=404)
+
+    user.delete()
+    return Response({'message': 'User deleted'})
