@@ -18,6 +18,8 @@ from django.core.mail import send_mail
 from django.utils.http import urlencode
 from django.utils import timezone
 from notifications.views import send_notification
+from django.db.models import Q, Count
+from courses.models import Course, Enrollment
 
 
 @api_view(['POST'])
@@ -259,3 +261,85 @@ def reject_instructor(request, request_id):
     except Exception:
         pass
     return Response({'message': 'Instructor rejected'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_users(request):
+    """Admin-only: list users with optional filters
+
+    Query params:
+      - role: 'student' | 'instructor' | 'admin'
+      - search: name or email contains
+      - status: for students 'active'|'inactive'; for instructors 'approved'|'pending'
+    """
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+
+    role = request.query_params.get('role')
+    search = request.query_params.get('search', '').strip()
+    status_filter = request.query_params.get('status')
+
+    users = User.objects.all().order_by('-date_joined')
+    if role:
+        users = users.filter(role=role)
+
+    if search:
+        users = users.filter(
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(username__icontains=search)
+        )
+
+    # Map domain-specific statuses
+    if role == 'student' and status_filter:
+        # Treat is_active as student status
+        if status_filter.lower() == 'active':
+            users = users.filter(is_active=True)
+        elif status_filter.lower() == 'inactive':
+            users = users.filter(is_active=False)
+    elif role == 'instructor' and status_filter:
+        # Consider instructors "approved" if role == instructor.
+        if status_filter.lower() == 'approved':
+            users = users.filter(role='instructor')
+        elif status_filter.lower() == 'pending':
+            # pending instructor requests
+            pending_ids = InstructorRequest.objects.filter(
+                status='pending').values_list('user_id', flat=True)
+            users = users.filter(id__in=list(pending_ids))
+
+    serializer = UserProfileSerializer(users, many=True)
+    data = serializer.data
+
+    # Build maps for computed counts/status
+    user_ids = list(users.values_list('id', flat=True))
+
+    if role == 'student':
+        enroll_counts = dict(
+            Enrollment.objects.filter(student_id__in=user_ids)
+            .values_list('student_id')
+            .annotate(cnt=Count('id'))
+        ) if user_ids else {}
+        for item in data:
+            uid = item['id']
+            item['enrolled_courses_count'] = int(enroll_counts.get(uid, 0))
+            item['status'] = 'Active' if users.filter(
+                id=uid, is_active=True).exists() else 'Inactive'
+
+    if role == 'instructor':
+        approved_counts = dict(
+            Course.objects.filter(
+                instructor_id__in=user_ids, status='approved')
+            .values_list('instructor_id')
+            .annotate(cnt=Count('id'))
+        ) if user_ids else {}
+        # pending ids via InstructorRequest
+        pending_ids = set(InstructorRequest.objects.filter(status='pending', user_id__in=user_ids)
+                          .values_list('user_id', flat=True))
+        for item in data:
+            uid = item['id']
+            item['approved_courses_count'] = int(approved_counts.get(uid, 0))
+            item['status'] = 'Pending' if uid in pending_ids else 'Approved'
+
+    return Response(data)

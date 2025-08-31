@@ -21,4 +21,5 @@ urlpatterns = [
          views.approve_instructor, name='approve_instructor'),
     path('instructor/requests/<int:request_id>/reject/',
          views.reject_instructor, name='reject_instructor'),
+    path('users/', views.list_users, name='list_users'),
 ]
