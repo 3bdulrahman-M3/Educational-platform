@@ -3,8 +3,8 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status, parsers, generics
-from .models import Course, Enrollment, Category, Video
-from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer
+from .models import Course, Enrollment, Category, Video, CourseReview, CourseNote
+from .serializers import CourseSerializer, EnrollmentSerializer, CategorySerializer, VideoSerializer, CourseReviewSerializer, CourseNoteSerializer
 from exams.serializers import ExamSerializer
 from exams.models import Exam
 from authentication.serializers import UserProfileSerializer
