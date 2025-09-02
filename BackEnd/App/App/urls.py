@@ -32,4 +32,5 @@ urlpatterns = [
     path('api/live/', include('liveSessions.urls')),
     path('api/', include('notifications.urls')),
     path('api/admin/analytics/', include('App.analytics_urls')),
+    path('api/admin/sales/', include('App.sales_urls')),
 ]
