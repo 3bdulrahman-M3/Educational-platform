@@ -59,7 +59,8 @@ INSTALLED_APPS = [
     'liveSessions',
     'notifications',
     'oauth2',
-    'stripe'
+    'stripe',
+    'chatBot'
 ]
 
 MIDDLEWARE = [

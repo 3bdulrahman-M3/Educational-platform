@@ -34,4 +34,5 @@ urlpatterns = [
     path('api/admin/analytics/', include('App.analytics_urls')),
     path('api/admin/sales/', include('App.sales_urls')),
     path('api/admin/categories/', include('App.admin_categories_urls')),
+    path('api/chatbot/', include('chatBot.urls')),
 ]
