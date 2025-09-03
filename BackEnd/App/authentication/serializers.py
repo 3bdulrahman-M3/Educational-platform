@@ -66,7 +66,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
-                  'role', 'date_joined', 'image', 'bio', 'interests')
+                  'role', 'is_superuser', 'date_joined', 'image', 'bio', 'interests')
         read_only_fields = ('id', 'date_joined')
 
     def get_image(self, obj):

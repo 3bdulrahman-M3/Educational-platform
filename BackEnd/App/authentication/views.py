@@ -20,6 +20,8 @@ from django.utils import timezone
 from notifications.views import send_notification
 from django.db.models import Q, Count
 from courses.models import Course, Enrollment
+from django.core.validators import validate_email as django_validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
 
 
 @api_view(['POST'])
@@ -362,3 +364,85 @@ def delete_user(request, user_id: int):
 
     user.delete()
     return Response({'message': 'User deleted'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_admin(request):
+    """Super-admin only: create a new user with a given role.
+
+    Expected body:
+      - name (optional): full name, will be split to first/last
+      - first_name (optional)
+      - last_name (optional)
+      - email (required)
+      - password (required)
+      - confirm_password (required)
+      - role (optional, one of 'admin' | 'instructor' | 'student'; default 'admin')
+    """
+    # Only superusers can create users via this endpoint
+    if not getattr(request.user, 'is_superuser', False):
+        return Response({'error': 'Forbidden'}, status=403)
+
+    data = request.data or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password') or ''
+    confirm_password = data.get('confirm_password') or ''
+    name = (data.get('name') or '').strip()
+    first_name = (data.get('first_name') or '').strip()
+    last_name = (data.get('last_name') or '').strip()
+
+    if not email:
+        return Response({'email': ['This field is required.']}, status=400)
+    try:
+        django_validate_email(email)
+    except DjangoValidationError:
+        return Response({'email': ['Enter a valid email address.']}, status=400)
+
+    if not password:
+        return Response({'password': ['This field is required.']}, status=400)
+    if not confirm_password:
+        return Response({'confirm_password': ['This field is required.']}, status=400)
+    if password != confirm_password:
+        return Response({'confirm_password': ["Passwords don't match."]}, status=400)
+    if len(password) < 8:
+        return Response({'password': ['Must be at least 8 characters long.']}, status=400)
+
+    # Derive names from 'name' if not provided
+    if name and not (first_name or last_name):
+        parts = name.split()
+        first_name = parts[0]
+        last_name = ' '.join(parts[1:]) if len(parts) > 1 else ''
+
+    # Ensure email uniqueness
+    if User.objects.filter(email=email).exists():
+        return Response({'email': ['A user with that email already exists.']}, status=400)
+
+    # Generate a username if not provided, based on email local-part
+    base_username = email.split('@')[0][:30] or 'admin'
+    candidate = base_username
+    suffix = 1
+    while User.objects.filter(username=candidate).exists():
+        tail = f"{suffix}"
+        candidate = f"{base_username[: max(1, 30 - len(tail))]}{tail}"
+        suffix += 1
+
+    # Determine role
+    role = (data.get('role') or 'admin').strip().lower()
+    if role not in {'admin', 'instructor', 'student'}:
+        return Response({'role': ['Role must be admin, instructor, or student.']}, status=400)
+
+    # Create the user with chosen role
+    user = User.objects.create_user(
+        email=email,
+        username=candidate,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        password=password,
+    )
+
+    return Response({
+        'message': 'User created successfully',
+        'user': UserProfileSerializer(user).data
+    }, status=201)
