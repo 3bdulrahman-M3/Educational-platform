@@ -36,15 +36,14 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-<<<<<<< HEAD
+
 ALLOWED_HOSTS = [
     'educational-platform-production.up.railway.app',
     '127.0.0.1',
     'localhost'
 ]
-=======
+
 ALLOWED_HOSTS = ['*']
->>>>>>> 83b04b748eef35ef992b0c2e894b9fd3e4bbb40b
 
 
 # Application definition
