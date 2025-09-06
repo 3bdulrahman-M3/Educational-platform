@@ -18,14 +18,18 @@ def main():
 
     # Check if this is a runserver command
     if len(sys.argv) > 1 and sys.argv[1] == 'runserver':
-        print("🚀 Starting Django ASGI server with WebSocket support...")
-        print("📍 Server: http://127.0.0.1:8000")
-        print("🔌 WebSocket: ws://127.0.0.1:8000/ws/notifications/")
+        # Use PORT from environment (Railway sets this), fallback to 8000
+        port = os.environ.get('PORT', '8000')
+        host = '0.0.0.0'
+
+        print("🚀 Starting ASGI server (uvicorn) with WebSocket support...")
+        print(f"📍 Server: http://{host}:{port}")
+        print(f"🔌 WebSocket: ws://{host}:{port}/ws/notifications/")
         print("⏹️  Press Ctrl+C to stop the server")
         print("-" * 60)
 
-        # Replace runserver with ASGI server
-        sys.argv[1] = 'run_asgi'
+        # Replace runserver with custom ASGI management command and pass host/port
+        sys.argv = [sys.argv[0], 'run_asgi', '--host', host, '--port', port]
         execute_from_command_line(sys.argv)
     else:
         # For all other commands, run normally
