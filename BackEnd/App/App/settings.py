@@ -228,19 +228,45 @@ AUTH_USER_MODEL = 'authentication.User'
 # Channels Configuration for WebSocket support
 ASGI_APPLICATION = 'App.asgi.application'
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [{
-                "host": os.environ.get('REDIS_HOST', 'redis-15762.c321.us-east-1-2.ec2.redns.redis-cloud.com'),
-                "port": int(os.environ.get('REDIS_PORT', 15762)),
-                "username": os.environ.get('REDIS_USERNAME', 'default'),
-                "password": os.environ.get('REDIS_PASSWORD', ''),
-            }],
+# Channels / Redis configuration with safe fallbacks
+_REDIS_URL = os.environ.get('REDIS_URL')
+if _REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [_REDIS_URL],
+            },
         },
-    },
-}
+    }
+elif os.environ.get('REDIS_HOST'):
+    # Build URL from individual parts if provided
+    _redis_scheme = 'rediss' if os.environ.get(
+        'REDIS_SSL', 'false').lower() == 'true' else 'redis'
+    _redis_user = os.environ.get('REDIS_USERNAME')
+    _redis_pass = os.environ.get('REDIS_PASSWORD')
+    _redis_host = os.environ.get('REDIS_HOST')
+    _redis_port = os.environ.get('REDIS_PORT', '6379')
+    _redis_db = os.environ.get('REDIS_DB', '0')
+    if _redis_user or _redis_pass:
+        _host_url = f"{_redis_scheme}://{_redis_user or ''}:{_redis_pass or ''}@{_redis_host}:{_redis_port}/{_redis_db}"
+    else:
+        _host_url = f"{_redis_scheme}://{_redis_host}:{_redis_port}/{_redis_db}"
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [_host_url],
+            },
+        },
+    }
+else:
+    # Fallback for local development without Redis (single-process only)
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
 # Redis Configuration
 REDIS_HOST = os.environ.get(
