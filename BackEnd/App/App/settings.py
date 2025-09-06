@@ -36,7 +36,11 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'educational-platform-production.up.railway.app',
+    '127.0.0.1',
+    'localhost'
+]
 
 
 # Application definition
@@ -66,6 +70,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -154,6 +159,14 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -249,3 +262,12 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 # Frontend base URL for links in emails
 FRONTEND_BASE_URL = os.environ.get(
     'FRONTEND_BASE_URL', 'http://localhost:5173')
+
+# Trust Railway domain for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://educational-platform-production.up.railway.app'
+]
+
+# Respect proxy headers on Railway
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

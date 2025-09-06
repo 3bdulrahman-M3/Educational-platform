@@ -8,7 +8,7 @@ import requests
 import json
 from datetime import datetime
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "https://educational-platform-production.up.railway.app"
 
 
 def test_notification_system():
