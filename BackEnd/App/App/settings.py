@@ -225,7 +225,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
-   "content-type",
+    "content-type",
     "authorization",
     "accept",
     "origin",
@@ -234,15 +234,13 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "x-requested-with",
 ]
 
-from fastapi.middleware.cors import CORSMiddleware
+# Compatibility with older corsheaders versions (Railway image variance)
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:5173',
+    'https://educational-platform-production.up.railway.app',
+]
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://your-frontend-domain.com"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Custom user model
 AUTH_USER_MODEL = 'authentication.User'
