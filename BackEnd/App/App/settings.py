@@ -224,6 +224,9 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'https://eduplatformiti.netlify.app',
 ]
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://[a-z0-9-]+\.netlify\.app$',  # allow Netlify deploy/previews
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
     "content-type",
