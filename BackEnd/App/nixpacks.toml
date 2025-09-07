@@ -2,18 +2,17 @@
 NIXPACKS_PYTHON_VERSION = "3.12"
 
 [phases.setup]
-nixPkgs = ["python312", "gcc", "pkg-config"]
+nixPkgs = ["python312", "gcc"]
 
 [phases.install]
 cmds = [
-    "python -m venv /opt/venv",
-    ". /opt/venv/bin/activate && pip install -r requirements.txt"
+    "pip install -r requirements.txt"
 ]
 
 [phases.build]
 cmds = [
-    ". /opt/venv/bin/activate && mkdir -p staticfiles"
+    "mkdir -p staticfiles"
 ]
 
 [start]
-cmd = ". /opt/venv/bin/activate && gunicorn App.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+cmd = "gunicorn App.wsgi:application --bind 0.0.0.0:$PORT --workers 2"
