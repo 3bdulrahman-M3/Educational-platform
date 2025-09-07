@@ -340,6 +340,13 @@ CSRF_TRUSTED_ORIGINS = [
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
+# WebSocket SSL settings for Railway
+SECURE_SSL_REDIRECT = False  # Railway handles SSL termination
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# WebSocket CORS settings
+CORS_ALLOW_ALL_ORIGINS_FOR_WEBSOCKETS = True
+
 
 CORS_ALLOW_METHODS = [
     "GET",
