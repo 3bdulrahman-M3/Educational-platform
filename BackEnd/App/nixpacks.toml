@@ -12,7 +12,7 @@ cmds = [
 
 [phases.build]
 cmds = [
-    ". /opt/venv/bin/activate && python manage.py collectstatic --noinput --clear"
+    ". /opt/venv/bin/activate && mkdir -p staticfiles"
 ]
 
 [start]
