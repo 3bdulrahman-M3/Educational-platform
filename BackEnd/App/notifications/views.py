@@ -38,6 +38,19 @@ class NotificationViewSet(viewsets.ModelViewSet):
         """Get count of unread notifications"""
         count = self.get_queryset().filter(is_read=False).count()
         return Response({'unread_count': count})
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get recent notifications for polling"""
+        notifications = self.get_queryset().filter(
+            is_read=False
+        ).order_by('-created_at')[:10]
+        
+        return Response({
+            'notifications': NotificationSerializer(notifications, many=True).data,
+            'unread_count': notifications.count(),
+            'timestamp': timezone.now().isoformat()
+        })
 
 
 # Utility function to send notifications
