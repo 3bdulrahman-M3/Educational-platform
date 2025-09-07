@@ -225,13 +225,20 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
-   "content-type",
+    "content-type",
     "authorization",
     "accept",
     "origin",
     "user-agent",
     "x-csrftoken",
     "x-requested-with",
+]
+
+# Compatibility with older corsheaders versions (Railway image variance)
+CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:5173',
+    'https://educational-platform-production.up.railway.app',
 ]
 
 
