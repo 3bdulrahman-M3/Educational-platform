@@ -222,6 +222,7 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
+    'https://eduplatformiti.netlify.app',
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = list(default_headers) + [
@@ -235,9 +236,10 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 ]
 
 # Compatibility with older corsheaders versions (Railway image variance)
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = [
     'http://localhost:5173',
+    'https://eduplatformiti.netlify.app',
     'https://educational-platform-production.up.railway.app',
 ]
 
@@ -313,9 +315,10 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 FRONTEND_BASE_URL = os.environ.get(
     'FRONTEND_BASE_URL', 'http://localhost:5173')
 
-# Trust Railway domain and local dev for CSRF
+# Trust Railway domain, Netlify, and local dev for CSRF
 CSRF_TRUSTED_ORIGINS = [
     'https://educational-platform-production.up.railway.app',
+    'https://eduplatformiti.netlify.app',
     'http://localhost:5173',
 ]
 
