@@ -29,14 +29,16 @@ from courses.models import Course, Enrollment
 @permission_classes([AllowAny])
 def health_check(request):
     """Simple health check endpoint for deployment monitoring"""
-    return JsonResponse({
-        'status': 'ok',
-        'message': 'Educational Platform API is running',
-        'debug': {
-            'allowed_hosts': getattr(request, 'get_host', lambda: 'unknown')(),
-            'cors_configured': True
-        }
-    })
+    try:
+        return JsonResponse({
+            'status': 'ok',
+            'message': 'Educational Platform API is running'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
 
 urlpatterns = [
     path('', health_check, name='health_check'),  # Root health check
