@@ -24,8 +24,10 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
             # Handle authentication
             if message_type == 'auth' and not self.user:
+                print(f"🔐 Received auth request")
                 token = data.get('token')
                 if token:
+                    print(f"🔍 Token received, length: {len(token)}")
                     user = await self.get_user_from_token(token)
                     if user:
                         self.user = user
@@ -37,11 +39,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                             'message': 'Successfully authenticated'
                         })
                     else:
+                        print("❌ Authentication failed - invalid token")
                         await self.send_json({'type': 'auth_error', 'message': 'Invalid token'})
-                        await self.close()
+                        await self.close(code=1011)
                 else:
+                    print("❌ Authentication failed - no token provided")
                     await self.send_json({'type': 'auth_error', 'message': 'No token provided'})
-                    await self.close()
+                    await self.close(code=1011)
 
             # Handle marking notification as read
             elif message_type == 'mark_read' and self.user:
@@ -77,10 +81,42 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     def get_user_from_token(self, token):
         """Get user from JWT token"""
         try:
-            from rest_framework_simplejwt.tokens import AccessToken
+            from rest_framework_simplejwt.tokens import AccessToken, TokenError
             from authentication.models import User
-
-            access_token = AccessToken(token)
-            return User.objects.get(id=access_token['user_id'])
-        except Exception:
+            import jwt
+            from django.conf import settings
+            
+            print(f"🔍 Attempting to validate token: {token[:50]}...")
+            
+            # Try using SimpleJWT first
+            try:
+                access_token = AccessToken(token)
+                user_id = access_token['user_id']
+                print(f"🔍 Token valid via SimpleJWT, user_id: {user_id}")
+            except TokenError as e:
+                print(f"⚠️ SimpleJWT failed: {str(e)}, trying manual decode...")
+                # Try manual JWT decode as fallback
+                payload = jwt.decode(
+                    token, 
+                    settings.SECRET_KEY, 
+                    algorithms=['HS256']
+                )
+                user_id = payload['user_id']
+                print(f"🔍 Token valid via manual decode, user_id: {user_id}")
+            
+            user = User.objects.get(id=user_id)
+            print(f"✅ User found: {user.email}")
+            return user
+            
+        except jwt.ExpiredSignatureError:
+            print("❌ Token expired")
+            return None
+        except jwt.InvalidTokenError as e:
+            print(f"❌ Invalid token: {str(e)}")
+            return None
+        except User.DoesNotExist:
+            print(f"❌ User with id {user_id} not found")
+            return None
+        except Exception as e:
+            print(f"❌ Token validation failed: {str(e)}")
             return None
