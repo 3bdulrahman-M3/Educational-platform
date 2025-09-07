@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from datetime import timedelta
 from dotenv import load_dotenv
+from corsheaders.defaults import default_headers
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
@@ -73,9 +74,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -218,8 +219,15 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Only for development
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+    'content-type',
+]
 
 
 # Custom user model
@@ -293,9 +301,10 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 FRONTEND_BASE_URL = os.environ.get(
     'FRONTEND_BASE_URL', 'http://localhost:5173')
 
-# Trust Railway domain for CSRF
+# Trust Railway domain and local dev for CSRF
 CSRF_TRUSTED_ORIGINS = [
-    'https://educational-platform-production.up.railway.app'
+    'https://educational-platform-production.up.railway.app',
+    'http://localhost:5173',
 ]
 
 # Respect proxy headers on Railway
