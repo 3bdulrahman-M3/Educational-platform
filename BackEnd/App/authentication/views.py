@@ -18,6 +18,7 @@ from django.core.mail import send_mail
 from django.utils.http import urlencode
 from django.utils import timezone
 from notifications.views import send_notification
+from django.core.files.storage import default_storage
 from django.db.models import Q, Count
 from courses.models import Course, Enrollment
 from django.core.validators import validate_email as django_validate_email
@@ -157,18 +158,74 @@ def password_reset_confirm(request):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
 def request_instructor(request):
-    """User requests to become an instructor"""
+    """User requests to become an instructor with optional documents and details"""
     if request.user.role == 'instructor':
         return Response({'message': 'Already an instructor'}, status=200)
     existing = getattr(request.user, 'instructor_request', None)
-    if existing and existing.status == 'pending':
-        return Response({'message': 'Request already pending'}, status=200)
+
     motivation = request.data.get('motivation', '')
+    # Support both full_name and name for compatibility with older clients
+    full_name = request.data.get(
+        'full_name', '') or request.data.get('name', '')
+    degree = request.data.get('degree', '')
+    certifications = request.data.get('certifications', '')
+
+    uploaded_urls = []
+    primary_photo_url = None
+    # Handle multiple files (try common keys)
+    files = []
+    if hasattr(request, 'FILES'):
+        files = (
+            request.FILES.getlist('files')
+            or request.FILES.getlist('file')
+            or request.FILES.getlist('documents')
+            or []
+        )
+    for f in files:
+        # Try Cloudinary first
+        try:
+            from cloudinary.uploader import upload as cloudinary_upload
+            result = cloudinary_upload(
+                f, folder=f"instructors/{request.user.id}")
+            if result and 'secure_url' in result:
+                uploaded_urls.append(result['secure_url'])
+                if not primary_photo_url and str(result.get('resource_type')) == 'image':
+                    primary_photo_url = result['secure_url']
+                continue
+        except Exception:
+            # proceed to storage fallback
+            ...
+        # Fallback to default storage (Cloudinary storage or local media)
+        try:
+            stored_name = default_storage.save(
+                f"instructors/{request.user.id}/{f.name}", f)
+            url = default_storage.url(stored_name)
+            uploaded_urls.append(url)
+            if not primary_photo_url and str(f.content_type or '').startswith('image/'):
+                primary_photo_url = url
+        except Exception:
+            # Ignore individual file upload failures
+            pass
+
+    # If we uploaded something but didn't determine a primary photo, pick first
+    if not primary_photo_url and uploaded_urls:
+        primary_photo_url = uploaded_urls[0]
+
     ir, _ = InstructorRequest.objects.update_or_create(
         user=request.user,
-        defaults={'motivation': motivation, 'status': 'pending',
-                  'reviewed_at': None, 'reviewed_by': None}
+        defaults={
+            'motivation': motivation,
+            'full_name': full_name,
+            'degree': degree,
+            'certifications': certifications,
+            'documents': uploaded_urls or (existing.documents if existing else []),
+            'photo_url': primary_photo_url or (existing.photo_url if existing else ''),
+            'status': 'pending',
+            'reviewed_at': None,
+            'reviewed_by': None,
+        }
     )
     # notify admins
     try:
@@ -184,7 +241,77 @@ def request_instructor(request):
             )
     except Exception:
         pass
-    return Response({'message': 'Request submitted'}, status=201)
+    return Response({
+        'message': 'Request submitted',
+        'request': {
+            'id': ir.id,
+            'user_id': request.user.id,
+            'email': request.user.email,
+            'full_name': ir.full_name,
+            'degree': ir.degree,
+            'certifications': ir.certifications,
+            'motivation': ir.motivation,
+            'documents': ir.documents,
+            'photo_url': ir.photo_url,
+            'status': ir.status,
+        }
+    }, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_instructor_request(request):
+    ir = getattr(request.user, 'instructor_request', None)
+    if not ir:
+        return Response({'detail': 'No request found'}, status=404)
+    return Response({
+        'id': ir.id,
+        'user_id': request.user.id,
+        'email': request.user.email,
+        'full_name': ir.full_name,
+        'degree': ir.degree,
+        'certifications': ir.certifications,
+        'motivation': ir.motivation,
+        'documents': ir.documents,
+        'photo_url': ir.photo_url,
+        'status': ir.status,
+    })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_instructor_photo(request):
+    file = None
+    if hasattr(request, 'FILES'):
+        file = request.FILES.get('file') or (
+            request.FILES.getlist(
+                'files')[0] if request.FILES.getlist('files') else None
+        )
+    if not file:
+        return Response({'error': 'No file provided'}, status=400)
+    url = None
+    try:
+        from cloudinary.uploader import upload as cloudinary_upload
+        result = cloudinary_upload(
+            file, folder=f"instructors/{request.user.id}")
+        url = result.get('secure_url') if result else None
+    except Exception:
+        url = None
+    if not url:
+        try:
+            stored_name = default_storage.save(
+                f"instructors/{request.user.id}/{file.name}", file)
+            url = default_storage.url(stored_name)
+        except Exception:
+            return Response({'error': 'Upload failed'}, status=400)
+    ir, _ = InstructorRequest.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'photo_url': url,
+        }
+    )
+    return Response({'photo_url': url, 'id': ir.id})
 
 
 @api_view(['GET'])
@@ -203,6 +330,12 @@ def list_instructor_requests(request):
             'motivation': r.motivation,
             'status': r.status,
             'created_at': r.created_at,
+            # New fields for richer admin review UI
+            'full_name': getattr(r, 'full_name', ''),
+            'degree': getattr(r, 'degree', ''),
+            'certifications': getattr(r, 'certifications', ''),
+            'documents': getattr(r, 'documents', []),
+            'photo_url': getattr(r, 'photo_url', ''),
         }
         for r in pending
     ]

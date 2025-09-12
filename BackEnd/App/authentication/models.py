@@ -43,6 +43,14 @@ class InstructorRequest(models.Model):
     user = models.OneToOneField(
         'User', on_delete=models.CASCADE, related_name='instructor_request')
     motivation = models.TextField(blank=True)
+    # Extra applicant details
+    full_name = models.CharField(max_length=150, blank=True)
+    degree = models.CharField(max_length=150, blank=True)
+    certifications = models.TextField(blank=True)
+    # Primary profile document/photo (Cloudinary secure URL)
+    photo_url = models.URLField(blank=True)
+    # Store uploaded document URLs (e.g., Cloudinary URLs)
+    documents = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=(
         ('pending', 'Pending'),
