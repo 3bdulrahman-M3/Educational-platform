@@ -18,3 +18,4 @@ class MessageAdmin(admin.ModelAdmin):
     search_fields = ['content', 'conversation__user__email']
     readonly_fields = ['created_at']
     ordering = ['-created_at']
+

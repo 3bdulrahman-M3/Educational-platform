@@ -43,3 +43,4 @@ def reset_migrations():
 
 if __name__ == "__main__":
     reset_migrations()
+

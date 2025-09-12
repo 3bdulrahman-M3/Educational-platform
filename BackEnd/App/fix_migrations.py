@@ -42,3 +42,4 @@ def fix_migrations():
 
 if __name__ == "__main__":
     fix_migrations()
+
