@@ -69,7 +69,8 @@ INSTALLED_APPS = [
     'notifications',
     'oauth2',
     'stripe',
-    'chatBot'
+    'chatBot',
+    'chat'  # Chat system for user-admin communication
 ]
 
 MIDDLEWARE = [
