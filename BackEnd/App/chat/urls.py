@@ -23,3 +23,4 @@ urlpatterns = [
     path('conversations/<int:conversation_id>/unread-count/', 
          views.conversation_unread_count, name='conversation-unread-count'),
 ]
+

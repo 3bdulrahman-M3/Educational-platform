@@ -110,3 +110,4 @@ class MessageReadStatus(models.Model):
     class Meta:
         unique_together = ['message', 'user']
         db_table = 'chat_message_read_status'
+

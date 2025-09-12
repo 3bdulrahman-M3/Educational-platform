@@ -294,3 +294,4 @@ When adding new features:
 ## License
 
 This chat system is part of the educational platform project.
+

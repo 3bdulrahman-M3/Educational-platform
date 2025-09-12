@@ -275,3 +275,4 @@ def conversation_unread_count(request, conversation_id):
         count = conversation.unread_count
     
     return Response({'unread_count': count})
+
