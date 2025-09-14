@@ -168,7 +168,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Only add static dir if it exists
-import os
 if os.path.exists(BASE_DIR / 'static'):
     STATICFILES_DIRS = [BASE_DIR / 'static']
 else:
@@ -268,44 +267,51 @@ AUTH_USER_MODEL = 'authentication.User'
 ASGI_APPLICATION = 'App.asgi.application'
 
 # Channels / Redis configuration with safe fallbacks
-_REDIS_URL = os.environ.get('REDIS_URL')
-if _REDIS_URL:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [_REDIS_URL],
-            },
-        },
-    }
-elif os.environ.get('REDIS_HOST'):
-    # Build URL from individual parts if provided
-    _redis_scheme = 'rediss' if os.environ.get(
-        'REDIS_SSL', 'false').lower() == 'true' else 'redis'
-    _redis_user = os.environ.get('REDIS_USERNAME')
-    _redis_pass = os.environ.get('REDIS_PASSWORD')
-    _redis_host = os.environ.get('REDIS_HOST')
-    _redis_port = os.environ.get('REDIS_PORT', '6379')
-    _redis_db = os.environ.get('REDIS_DB', '0')
-    if _redis_user or _redis_pass:
-        _host_url = f"{_redis_scheme}://{_redis_user or ''}:{_redis_pass or ''}@{_redis_host}:{_redis_port}/{_redis_db}"
-    else:
-        _host_url = f"{_redis_scheme}://{_redis_host}:{_redis_port}/{_redis_db}"
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [_host_url],
-            },
-        },
-    }
-else:
-    # Fallback for local development without Redis (single-process only)
+# Force in-memory channel layer in DEBUG to avoid Redis/TLS issues locally
+if DEBUG:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
         }
     }
+else:
+    _REDIS_URL = os.environ.get('REDIS_URL')
+    if _REDIS_URL:
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    'hosts': [_REDIS_URL],
+                },
+            },
+        }
+    elif os.environ.get('REDIS_HOST'):
+        # Build URL from individual parts if provided
+        _redis_scheme = 'rediss' if os.environ.get(
+            'REDIS_SSL', 'false').lower() == 'true' else 'redis'
+        _redis_user = os.environ.get('REDIS_USERNAME')
+        _redis_pass = os.environ.get('REDIS_PASSWORD')
+        _redis_host = os.environ.get('REDIS_HOST')
+        _redis_port = os.environ.get('REDIS_PORT', '6379')
+        _redis_db = os.environ.get('REDIS_DB', '0')
+        if _redis_user or _redis_pass:
+            _host_url = f"{_redis_scheme}://{_redis_user or ''}:{_redis_pass or ''}@{_redis_host}:{_redis_port}/{_redis_db}"
+        else:
+            _host_url = f"{_redis_scheme}://{_redis_host}:{_redis_port}/{_redis_db}"
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    'hosts': [_host_url],
+                },
+            },
+        }
+    else:
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            }
+        }
 
 # Redis Configuration
 REDIS_HOST = os.environ.get(
