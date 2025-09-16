@@ -55,4 +55,5 @@ urlpatterns = [
     path('api/admin/categories/', include('App.admin_categories_urls')),
     path('api/chatbot/', include('chatBot.urls')),
     path('api/chat/', include('chat.urls')),  # Chat system endpoints
+    path('api/transactions/', include('transactions.urls')),  # Payment transactions
 ]

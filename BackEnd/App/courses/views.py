@@ -346,6 +346,29 @@ def enroll_in_course(request, pk):
 
     enrollment = Enrollment.objects.create(student=request.user, course=course)
 
+    # 💳 Create transaction record
+    try:
+        from transactions.models import Transaction
+        transaction = Transaction.objects.create(
+            student=request.user,
+            course=course,
+            amount=course.price,
+            currency='USD',
+            payment_status='completed',
+            payment_method='stripe',
+            stripe_payment_intent_id=intent_id,
+            notes=f'Enrollment in {course.title}',
+            metadata={
+                'enrollment_id': enrollment.id,
+                'course_id': course.id,
+                'student_id': request.user.id,
+                'stripe_intent_status': intent.status,
+            }
+        )
+        print(f"Transaction created: {transaction.transaction_id}")
+    except Exception as e:
+        print(f"Transaction creation error: {e}")
+
     # 🔔 Send notification to instructor about new enrollment
     try:
         send_notification(
