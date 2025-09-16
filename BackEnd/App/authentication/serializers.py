@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import authenticate
-from .models import User, PasswordResetToken, InstructorRequest
+from .models import User, PasswordResetToken, InstructorRequest, IdentityVerificationRequest
 from django.utils import timezone
 from datetime import timedelta
 from django.contrib.auth.password_validation import validate_password
@@ -66,7 +66,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
-                  'role', 'is_superuser', 'date_joined', 'image', 'bio', 'interests')
+                  'role', 'is_superuser', 'date_joined', 'image', 'bio', 'interests', 'verified')
         read_only_fields = ('id', 'date_joined')
 
     def get_image(self, obj):
@@ -76,6 +76,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
             except AttributeError:
                 return obj.image
         return None
+
+
+class IdentityVerificationRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IdentityVerificationRequest
+        fields = (
+            'id', 'user', 'id_photo_url', 'notes', 'status', 'created_at', 'reviewed_at', 'reviewed_by'
+        )
+        read_only_fields = ('id', 'user', 'status',
+                            'created_at', 'reviewed_at', 'reviewed_by')
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):

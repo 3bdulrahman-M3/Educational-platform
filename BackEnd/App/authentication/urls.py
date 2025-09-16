@@ -25,6 +25,17 @@ urlpatterns = [
          views.approve_instructor, name='approve_instructor'),
     path('instructor/requests/<int:request_id>/reject/',
          views.reject_instructor, name='reject_instructor'),
+    # Identity verification
+    path('verification/request/', views.request_identity_verification,
+         name='request_identity_verification'),
+    path('verification/request/me/', views.get_my_verification_request,
+         name='get_my_verification_request'),
+    path('verification/requests/', views.list_identity_verification_requests,
+         name='list_identity_verification_requests'),
+    path('verification/requests/<int:request_id>/approve/',
+         views.approve_identity_verification, name='approve_identity_verification'),
+    path('verification/requests/<int:request_id>/reject/',
+         views.reject_identity_verification, name='reject_identity_verification'),
     path('users/', views.list_users, name='list_users'),
     path('users/<int:user_id>/delete/', views.delete_user, name='delete_user'),
     # Admin management

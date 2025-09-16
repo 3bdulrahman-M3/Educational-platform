@@ -11,7 +11,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     PasswordResetConfirmSerializer,
 )
-from .models import User, InstructorRequest
+from .models import User, InstructorRequest, IdentityVerificationRequest
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from django.core.mail import send_mail
@@ -23,6 +23,7 @@ from django.db.models import Q, Count
 from courses.models import Course, Enrollment
 from django.core.validators import validate_email as django_validate_email
 from django.core.exceptions import ValidationError as DjangoValidationError
+from cloudinary.uploader import upload as cloudinary_upload
 
 
 @api_view(['POST'])
@@ -154,6 +155,168 @@ def password_reset_confirm(request):
             pass
         return Response({'message': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def request_identity_verification(request):
+    """Upload ID photo and create/update a pending verification request."""
+    # Extract file
+    file = None
+    if hasattr(request, 'FILES'):
+        file = request.FILES.get('file') or (
+            request.FILES.getlist(
+                'files')[0] if request.FILES.getlist('files') else None
+        )
+    if not file:
+        return Response({'error': 'No file provided'}, status=400)
+
+    # Try Cloudinary first; fallback to default storage
+    url = None
+    try:
+        result = cloudinary_upload(
+            file, folder=f"id_verifications/{request.user.id}")
+        url = result.get('secure_url') if result else None
+    except Exception:
+        url = None
+    if not url:
+        try:
+            stored_name = default_storage.save(
+                f"id_verifications/{request.user.id}/{file.name}", file)
+            url = default_storage.url(stored_name)
+        except Exception:
+            return Response({'error': 'Upload failed'}, status=400)
+
+    notes = request.data.get('notes', '')
+
+    ivr, _ = IdentityVerificationRequest.objects.update_or_create(
+        user=request.user,
+        defaults={
+            'id_photo_url': url,
+            'notes': notes,
+            'status': 'pending',
+            'reviewed_at': None,
+            'reviewed_by': None,
+        }
+    )
+
+    # Mark user as pending
+    if getattr(request.user, 'verified', 'not_verified') != 'verified':
+        request.user.verified = 'pending'
+        request.user.save(update_fields=['verified'])
+
+    return Response({
+        'message': 'Verification request submitted',
+        'request': {
+            'id': ivr.id,
+            'user_id': request.user.id,
+            'id_photo_url': ivr.id_photo_url,
+            'status': ivr.status,
+            'notes': ivr.notes,
+        },
+        'user': UserProfileSerializer(request.user).data
+    }, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_my_verification_request(request):
+    ivr = getattr(request.user, 'identity_verification_request', None)
+    if not ivr:
+        return Response({'detail': 'No verification request found'}, status=404)
+    return Response({
+        'id': ivr.id,
+        'user_id': request.user.id,
+        'id_photo_url': ivr.id_photo_url,
+        'status': ivr.status,
+        'notes': ivr.notes,
+        'created_at': ivr.created_at,
+        'reviewed_at': ivr.reviewed_at,
+    })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_identity_verification_requests(request):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    pending = IdentityVerificationRequest.objects.select_related(
+        'user').order_by('-created_at')
+    data = [
+        {
+            'id': r.id,
+            'user_id': r.user_id,
+            'email': r.user.email,
+            'name': r.user.get_full_name(),
+            'status': r.status,
+            'created_at': r.created_at,
+            'id_photo_url': r.id_photo_url,
+            'notes': r.notes,
+        }
+        for r in pending
+    ]
+    return Response(data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def approve_identity_verification(request, request_id: int):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    req = IdentityVerificationRequest.objects.filter(
+        id=request_id).select_related('user').first()
+    if not req:
+        return Response({'error': 'Request not found'}, status=404)
+    req.status = 'approved'
+    req.reviewed_at = timezone.now()
+    req.reviewed_by = request.user
+    req.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    # Update user
+    req.user.verified = 'verified'
+    req.user.save(update_fields=['verified'])
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=req.user_id,
+            notification_type='announcement',
+            title='Identity Verified',
+            message='Your identity was verified successfully.'
+        )
+    except Exception:
+        pass
+    return Response({'message': 'Identity verification approved'})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reject_identity_verification(request, request_id: int):
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden'}, status=403)
+    req = IdentityVerificationRequest.objects.filter(
+        id=request_id).select_related('user').first()
+    if not req:
+        return Response({'error': 'Request not found'}, status=404)
+    reason = request.data.get('reason', '')
+    req.status = 'rejected'
+    req.reviewed_at = timezone.now()
+    req.reviewed_by = request.user
+    req.save(update_fields=['status', 'reviewed_at', 'reviewed_by'])
+    # Keep user as not_verified if not verified already
+    if req.user.verified != 'verified':
+        req.user.verified = 'not_verified'
+        req.user.save(update_fields=['verified'])
+    try:
+        send_notification(
+            sender_id=request.user.id,
+            receiver_id=req.user_id,
+            notification_type='announcement',
+            title='Identity Verification Rejected',
+            message=f'Reason: {reason}'
+        )
+    except Exception:
+        pass
+    return Response({'message': 'Identity verification rejected'})
 
 
 @api_view(['POST'])

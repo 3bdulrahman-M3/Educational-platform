@@ -29,6 +29,16 @@ class User(AbstractUser):
     interests = models.ManyToManyField(
         Category, related_name='interested_users', blank=True)  # Added field
 
+    # Identity verification status
+    VERIFIED_CHOICES = (
+        ('not_verified', 'Not Verified'),
+        ('pending', 'Pending'),
+        ('verified', 'Verified'),
+    )
+    verified = models.CharField(
+        max_length=20, choices=VERIFIED_CHOICES, default='not_verified'
+    )
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username', 'role']
 
@@ -63,6 +73,34 @@ class InstructorRequest(models.Model):
 
     class Meta:
         db_table = 'instructor_requests'
+        ordering = ['-created_at']
+
+
+class IdentityVerificationRequest(models.Model):
+    """Stores a user's identity verification request and uploaded ID photo."""
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+
+    user = models.OneToOneField(
+        'User', on_delete=models.CASCADE, related_name='identity_verification_request'
+    )
+    # Primary ID photo (Cloudinary or storage URL)
+    id_photo_url = models.URLField(blank=True)
+    # Optional metadata
+    notes = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL, related_name='reviewed_identity_requests'
+    )
+
+    class Meta:
+        db_table = 'identity_verification_requests'
         ordering = ['-created_at']
 
 
