@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils import timezone
 from .models import LiveSession
 from .serializers import LiveSessionSerializer
 import jwt
@@ -91,3 +92,52 @@ def generate_jaas_token(request):
         headers={"kid": "vpaas-magic-cookie-8aca48389d514e87a3ac1a38dd3a7b68/d8507d"}  # Replace with your tenant's key ID
     )
     return Response({"token": token})
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def edit_session(request, pk):
+    try:
+        session = LiveSession.objects.get(pk=pk)
+    except LiveSession.DoesNotExist:
+        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if session.created_by != request.user:
+        return Response({'error': 'You are not the owner of this session.'}, status=status.HTTP_403_FORBIDDEN)
+
+    title = request.data.get('title', session.title)
+    end_date = request.data.get('end_date', session.end_date)
+
+    # Validate end_date
+    if end_date:
+        try:
+            end_date_parsed = timezone.datetime.fromisoformat(end_date)
+            if end_date_parsed.tzinfo is None:
+                end_date_parsed = timezone.make_aware(end_date_parsed)
+        except Exception:
+            return Response({'error': 'Invalid end_date format. Use ISO 8601.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if end_date_parsed <= session.created_at:
+            return Response({'error': 'End date must be after the session start date.'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date_parsed <= timezone.now():
+            return Response({'error': 'End date must be in the future.'}, status=status.HTTP_400_BAD_REQUEST)
+        session.end_date = end_date_parsed
+
+    session.title = title
+    session.save()
+    serializer = LiveSessionSerializer(session)
+    return Response(serializer.data)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_session(request, pk):
+    try:
+        session = LiveSession.objects.get(pk=pk)
+    except LiveSession.DoesNotExist:
+        return Response({'error': 'Session not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    if session.created_by != request.user:
+        return Response({'error': 'You are not the owner of this session.'}, status=status.HTTP_403_FORBIDDEN)
+
+    session.delete()
+    return Response({'message': 'Session deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
