@@ -40,6 +40,7 @@ def health_check(request):
             'message': str(e)
         }, status=500)
 
+
 urlpatterns = [
     path('', health_check, name='health_check'),  # Root health check
     path('api/health/', health_check, name='api_health_check'),  # API health check
@@ -55,5 +56,7 @@ urlpatterns = [
     path('api/admin/categories/', include('App.admin_categories_urls')),
     path('api/chatbot/', include('chatBot.urls')),
     path('api/chat/', include('chat.urls')),  # Chat system endpoints
-    path('api/transactions/', include('transactions.urls')),  # Payment transactions
+    # Payment transactions
+    path('api/transactions/', include('transactions.urls')),
+    path('api/instructor/', include('App.instructor_urls')),
 ]
